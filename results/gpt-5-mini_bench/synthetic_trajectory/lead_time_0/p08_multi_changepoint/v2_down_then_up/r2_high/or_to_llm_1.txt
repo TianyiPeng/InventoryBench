@@ -1,0 +1,2354 @@
+[Timestamp: 2026-02-07 15:12:40]
+[Script: or_to_llm]
+[Instance: D:\TextArena\examples\benchmark\synthetic_trajectory\lead_time_0\p08_multi_changepoint\v2_down_then_up\r2_high]
+
+Using OpenRouter model: openai/gpt-5-mini
+Loaded CSV with 50 periods of demand data
+Detected 1 items: ['chips(Regular)']
+Date range: Period_1 to Period_50
+
+Using initial samples from train.csv: D:\TextArena\examples\benchmark\synthetic_trajectory\lead_time_0\p08_multi_changepoint\v2_down_then_up\r2_high\train.csv
+  Samples: [('Period_1', 95), ('Period_2', 113), ('Period_3', 106), ('Period_4', 84), ('Period_5', 71)]
+  Mean: 93.8, Count: 5
+Promised lead time (used by OR, shown to LLM): 0 periods
+Note: OR uses promised lead time for recommendations. Actual lead times in CSV may differ.
+      LLM must infer actual lead time from arrivals and adjust OR recommendations accordingly.
+Running full CSV horizon: 50 periods
+
+=== OR Agent Initialized for recommendations (CAPPED POLICY) ===
+chips(Regular):
+  Lead time (L): 0
+  Profit (p): 19.0, Holding cost (h): 1.0
+  Critical fractile (q): 0.9500
+  z* = Phi^(-1)(q): 1.6449
+  Initial samples: [95, 113, 106, 84, 71]
+
+======================================================================
+Period 1 (Period_1) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 93.80
+  Empirical std: 16.84
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 93.80
+  sigma_hat (\u03c3\u0302): 16.84
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 121.50
+  Current inventory: 0
+  Cap value: 121.50
+  OR recommends (capped): 122
+  OR recommends (uncapped): 122
+======================================================================
+
+
+Period 1 (Period_1) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Demand & OR check: Historical sample mean = (95+113+106+84+71)/5 = 93.8 units/period; sample std \u2248 16.85. OR uses promised L=0, so \u03bc\u0302 = 93.8, \u03c3\u0302 = 16.85. Critical fractile q = profit/(profit+holding) = 19/(19+1) = 0.95 \u2192 z* \u2248 1.645. OR base_stock = \u03bc\u0302 + z*\u03c3\u0302 \u2248 93.8 + 1.645\xd716.85 \u2248 121.5 \u2192 rounded recommendation 122. The OR cap (derived similarly for L=0) equals \u2248121.5, so OR outputs 122; with on-hand=0 and in-transit=0 the uncapped order_raw = 121.5 as well.\n\nStep 2 \u2014 Lead time & pipeline considerations: Promised lead time = 0. We have no concluded arrivals yet so we cannot confirm actual lead time; orders could arrive same-period (L=0) or be delayed/lost. Because we start with zero on-hand and zero pipeline, ordering less than OR's base-stock risks immediate lost sales (high profit per unit makes stockouts costly). Holding cost is low ($1) vs profit ($19), which justifies carrying safety stock.\n\nStep 3 \u2014 Decision rationale: Given (a) demand history centered ~94 with modest volatility (\u03c3\u224817), (b) very high critical fractile (95%), (c) zero starting inventory, and (d) promised L=0 (so if supplier meets promise the order arrives this period), I follow the OR recommendation and order 122 units to bring inventory toward the recommended base-stock. This balances expected demand + safety stock and minimizes expected lost-profit given the asymmetric costs.\n\nStep 4 \u2014 Risk notes & monitoring: Monitor the Period 1 conclude message to confirm whether the order actually arrived (to infer actual lead time). If arrivals are delayed or lost in subsequent periods, adjust orders upward to cover confirmed lead-time and record a carry-over insight when delays/losses are sustained (3+ periods).",
+  "short_rationale_for_human": "Following OR's recommendation of 122 units: historical mean \u224894 with \u03c3\u224817, very high critical fractile (95%) due to $19 profit vs $1 holding cost, and starting inventory is zero\u2014so stocking to OR base-stock minimizes costly stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 122
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 122})
+
+Period 1 (Period_1) Demand: {
+  "action": {
+    "chips(Regular)": 56
+  }
+}
+
+=== Period 1 Summary ===
+chips(Regular): ordered=122, arrived=122 units (ordered on Period 1, lead_time was 0 periods), starting on-hand inventory=122, demand=56, sold=56, ending on-hand inventory=66
+Daily Profit: $1064.00, Daily Holding Cost: $66.00
+Daily Reward (R_t): $998.00
+
+======================================================================
+Period 2 (Period_2) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 87.50
+  Empirical std: 21.57
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 87.50
+  sigma_hat (\u03c3\u0302): 21.57
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 122.97
+  Current inventory: 66
+  Cap value: 122.97
+  OR recommends (capped): 57
+  OR recommends (uncapped): 57
+======================================================================
+
+
+Period 2 (Period_2) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead-time inference: Period 1 conclude shows the Period 1 order (122) arrived in Period 1 with lead_time = 0. That confirms actual lead time = 0 (same-period arrival) for now. No evidence of lost shipments.\n\nStep 2 \u2014 Inventory & demand context: Current on-hand = 66, in-transit = 0. Historical demand samples provided to OR are much higher (samples: 95,113,106,84,71) implying a single-period mean near ~93, but Period 1 actual demand was only 56 (one observed sample). With promised lead time 0 and confirmed actual lead time 0, any order placed now will arrive before demand is realized this period (so it can be used to satisfy Period 2 demand in this decision cycle).\n\nStep 3 \u2014 OR recommendation assessment: OR recommends 57 units using its base-stock/capped policy (which uses the historical mean/variance and a high critical fractile q = 19/(19+1)=0.95 \u2192 z*\u22481.645). Given high profit relative to holding cost, OR biases toward high service levels. The OR recommendation would raise available inventory this period to 66 + 57 = 123 units.\n\nStep 4 \u2014 Decision trade-offs: The objective is profit \xd7 units_sold \u2212 holding_cost \xd7 ending_inventory. Profit per unit ($19) greatly exceeds holding cost per unit per period ($1), so the system tolerates higher ending inventory to avoid stockouts and lost sales. Although the single observed demand (56) was low, it is only one sample and not yet a sustained regime shift. The confirmed 0 lead time means orders placed now will help meet immediate demand, so following OR\u2019s capped baseline is reasonable.\n\nFinal strategy: Follow OR\u2019s recommendation of 57 units. This leverages the baseline\u2019s demand estimates and high service target, preserves sales given high profit margin, and keeps inventory risk limited because holding cost is low relative to profit. No carry-over insight is recorded because we require sustained multi-period evidence for regime or lead-time changes beyond the single-period confirmation.",
+  "short_rationale_for_human": "Following OR's recommendation to order 57 units \u2014 lead time confirmed 0 so orders will be available this period, profit >> holding cost favors maintaining higher stock and one low-demand observation is not yet a sustained shift.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 57
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 57})
+
+Period 2 (Period_2) Demand: {
+  "action": {
+    "chips(Regular)": 98
+  }
+}
+
+=== Period 2 Summary ===
+chips(Regular): ordered=57, arrived=57 units (ordered on Period 2, lead_time was 0 periods), starting on-hand inventory=123, demand=98, sold=98, ending on-hand inventory=25
+Daily Profit: $1862.00, Daily Holding Cost: $25.00
+Daily Reward (R_t): $1837.00
+
+======================================================================
+Period 3 (Period_3) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 89.00
+  Empirical std: 20.08
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 89.00
+  sigma_hat (\u03c3\u0302): 20.08
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 122.03
+  Current inventory: 25
+  Cap value: 122.03
+  OR recommends (capped): 98
+  OR recommends (uncapped): 98
+======================================================================
+
+
+Period 3 (Period_3) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead-time inference: Concluded messages for Period 1 and Period 2 show orders arrived in the same period they were placed (lead_time was 0 periods for both P1 and P2). This supports the supplier's promised lead time of 0 for now. No lost shipments are visible and in-transit = 0.\n\nStep 2 \u2014 Inventory & demand analysis: On-hand = 25, in-transit = 0. Historical sample mean (given list 95,113,106,84,71) = 93.8 units/period with sample std \u224816.85. Recent realized sold: Period 1 sold 56, Period 2 sold 98 \u2014 some variability but recent evidence and the historical mean both point near ~94 units for a typical period.\n\nStep 3 \u2014 Compare to OR recommendation: OR recommended 98 units. OR's base-stock logic (with q = 19/(19+1)=0.95 \u2192 z*\u22481.645) produces a base-stock \u2248 122 units; with current on-hand 25 that implies ordering \u224897 units. OR also applies a cap; its final recommendation of 98 is consistent with those calculations.\n\nStep 4 \u2014 Decision and justification: I will follow the OR recommendation and order 98 units. Rationale: promised (and observed) lead time = 0 means this order will arrive during this period and satisfy the immediate demand; ordering 98 brings expected available inventory (25 + 98 = 123 arriving this period) up to the OR base-stock target (~122), which matches the high critical-fractile policy appropriate given high profit relative to holding cost. This minimizes expected lost sales while incurring modest holding cost ($1/unit/period). Given demand variability (\u03c3 \u224816.85) and recent 98 sale, ordering 98 is a conservative way to avoid stockouts this period.\n\nStep 5 \u2014 Risk notes: If demand in Period 3 turns out much lower (e.g., closer to Period 1 sold=56), holding cost will rise but profit penalty for stockout is much larger, so the high-service decision is appropriate now. Monitor arrivals and Period 3 conclude to confirm continued lead-time = 0 and update if multiple periods contradict promise.\n",
+  "short_rationale_for_human": "Ordering 98 (matching OR) brings arriving inventory to ~123, matching the OR base-stock target (~122) given mean demand \u224894 and high profit/low holding cost\u2014this minimizes stockout risk for the immediate period with promised lead time = 0.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 98
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 98})
+
+Period 3 (Period_3) Demand: {
+  "action": {
+    "chips(Regular)": 137
+  }
+}
+
+=== Period 3 Summary ===
+chips(Regular): ordered=98, arrived=98 units (ordered on Period 3, lead_time was 0 periods), starting on-hand inventory=123, demand=137, sold=123, ending on-hand inventory=0
+Daily Profit: $2337.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2337.00
+
+======================================================================
+Period 4 (Period_4) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 95.00
+  Empirical std: 25.17
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 95.00
+  sigma_hat (\u03c3\u0302): 25.17
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 136.41
+  Current inventory: 0
+  Cap value: 136.41
+  OR recommends (capped): 137
+  OR recommends (uncapped): 137
+======================================================================
+
+
+Period 4 (Period_4) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded messages for Periods 1\u20133 show orders arriving in the same period they were placed (arrived units indicate lead_time was 0 for P1, P2, P3). Therefore actual lead time is confirmed as 0 periods and orders placed now will arrive in time to meet this period's demand. Inventory & demand analysis: On-hand = 0, in-transit = 0. Concluded demands have trended upward over the last three periods (sold: 56, 98, 123 sold out of higher demand in P3), with observed demand realized of 56 (P1), 98 (P2) and demand signal of 137 in P3 (drove a stockout). Profit per unit ($19) is large relative to holding cost ($1), so the cost of understock (lost high-margin sales) outweighs modest holding costs. OR recommendation: OR suggests ordering 137 units (base-stock/capped policy). Adjustment decision: Given confirmed lead time = 0, zero on-hand/pipeline, rising recent demand and high per-unit profit relative to holding cost, I accept the OR recommendation of 137 units. This quantity arrives in-period and positions us to capture expected demand while the holding cost penalty is small compared to lost-profit risk. Final strategy: Order 137 units now (chips(Regular)) to satisfy likely elevated demand this period and avoid stockouts. ",
+  "short_rationale_for_human": "Confirmed lead time = 0 and on-hand=0; recent demand rose sharply and profit ($19) far exceeds holding cost ($1), so I follow OR's recommendation and order 137 units to avoid costly stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 137
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 137})
+
+Period 4 (Period_4) Demand: {
+  "action": {
+    "chips(Regular)": 82
+  }
+}
+
+=== Period 4 Summary ===
+chips(Regular): ordered=137, arrived=137 units (ordered on Period 4, lead_time was 0 periods), starting on-hand inventory=137, demand=82, sold=82, ending on-hand inventory=55
+Daily Profit: $1558.00, Daily Holding Cost: $55.00
+Daily Reward (R_t): $1503.00
+
+======================================================================
+Period 5 (Period_5) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 93.56
+  Empirical std: 23.94
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 93.56
+  sigma_hat (\u03c3\u0302): 23.94
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 132.94
+  Current inventory: 55
+  Cap value: 132.94
+  OR recommends (capped): 78
+  OR recommends (uncapped): 78
+======================================================================
+
+
+Period 5 (Period_5) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 - Lead-time inference: Concluded history for Periods 1-4 shows every order arrived in the same period it was placed (Period1 ordered\u2192arrived P1, P2\u2192P2, P3\u2192P3, P4\u2192P4). That confirms actual lead time = 0 periods, so orders placed now will arrive and be available for today's demand. Step 2 - Demand & OR baseline check: Historical sample mean = 93.8 units/period, sample SD \u2248 16.84. OR's base-stock logic (with profit=19, holding=1 \u2192 critical fractile \u22480.95, z\u22481.645) produces base_stock \u2248 121.5 units. With on-hand=55 and in-transit=0, the base-stock shortfall is \u224866.5 units. OR recommended 78 units (it applied a cap); my raw base-stock-based order is \u224867 units. Step 3 - Inventory economics and risk: With lead time 0, ordering to reach the base_stock (\u2248122) covers the high service target implied by profit/holding ratio while avoiding excess holding cost. Ordering ~67 will leave expected ending inventory \u224828 units (121.5 - mean demand \u224827.7), a reasonable balance between lost sales risk and holding cost. Step 4 - Final decision and adjustments to OR: I choose to order 67 units (rounded from 66.5) rather than OR's 78. This follows the same base-stock logic but uses the raw computed shortfall (base_stock \u2212 pipeline) rather than OR's capped recommendation; given confirmed lead time 0 and no in-transit stock, the raw computation is appropriate and keeps holding cost lower while preserving high service. Step 5 - Execution notes for future periods: Because actual lead time is verified as 0, future orders can be planned to cover only the current period's demand (L+1 =1 period). Monitor demand for any sustained regime shift before changing the base-stock target.",
+  "short_rationale_for_human": "Confirmed actual lead time = 0; base-stock target \u2248122 units so order = base_stock \u2212 pipeline \u2248 67 units to reach target. I order 67 (lower than OR's 78) to follow the computed base-stock while avoiding extra holding cost.",
+  "carry_over_insight": "Lead time confirmed as 0 periods (observed: P1 order arrived P1; P2\u2192P2; P3\u2192P3; P4\u2192P4).",
+  "action": {
+    "chips(Regular)": 67
+  }
+}
+Carry-over insight: Lead time confirmed as 0 periods (observed: P1 order arrived P1; P2\u2192P2; P3\u2192P3; P4\u2192P4).
+======================================================================
+  (OR recommended: {'chips(Regular)': 78})
+
+Period 5 (Period_5) Demand: {
+  "action": {
+    "chips(Regular)": 111
+  }
+}
+
+=== Period 5 Summary ===
+chips(Regular): ordered=67, arrived=67 units (ordered on Period 5, lead_time was 0 periods), starting on-hand inventory=122, demand=111, sold=111, ending on-hand inventory=11
+Daily Profit: $2109.00, Daily Holding Cost: $11.00
+Daily Reward (R_t): $2098.00
+
+======================================================================
+Period 6 (Period_6) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 95.30
+  Empirical std: 23.24
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 95.30
+  sigma_hat (\u03c3\u0302): 23.24
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 133.52
+  Current inventory: 11
+  Cap value: 133.52
+  OR recommends (capped): 123
+  OR recommends (uncapped): 123
+======================================================================
+
+
+Period 6 (Period_6) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Historical concluded messages (Periods 1\u20135) confirm actual lead time = 0 (orders placed in Pn arrived in Pn). On-hand = 11, in-transit = 0, so no incoming units already visible. With lead time = 0, an order placed now will arrive during Period 6 and can satisfy Period 6 demand.\n\nStep 2 \u2014 Demand estimates & OR baseline: Using the provided samples (95,113,106,84,71) the empirical mean \u03bc\u0304 = 93.8 units/period and sample std dev \u03c3\u0304 \u2248 16.85. For L=0 the OR base-stock = \u03bc\u0302 + z*\u03c3\u0302 = 93.8 + 1.645\xd716.85 \u2248 121.5 units. OR recommended 123 units (they use promised lead time and their cap); their recommendation is higher than my calculated base-stock because of rounding/cap logic.\n\nStep 3 \u2014 Inventory target & order calculation: With base-stock \u2248122, pipeline_inventory = on-hand + in-transit = 11. To reach the base-stock target I should order \u2248122 \u2212 11 = 111 units (order_raw \u2248110.5 \u2192 round to 111). This order will arrive this period (L=0) and provide on-hand \u2248122 to meet expected demand \u224893.8 while keeping safety stock \u224828 units (z*\u03c3\u0302).\n\nStep 4 \u2014 Risk/reward and adjustment versus OR: Profit per unit is high ($19) vs holding cost low ($1), which justifies holding safety stock to avoid lost sales. OR's 123 is slightly higher than the base-stock calculation; ordering 111 reaches the statistically justified base-stock while avoiding a small extra holding cost from ordering ~12 extra units above the base-stock. Recent demand spikes (Period 3=137, Period 5=111) support maintaining a high service level; my 111 order still attains the intended service (base-stock \u2248122).\n\nFinal decision: Order 111 units of chips(Regular). This brings expected on-hand during Period 6 to ~122, matching the base-stock target given observed demand and confirmed zero lead time.\n",
+  "short_rationale_for_human": "Order 111 units (vs. OR's 123): confirmed lead time = 0, base-stock target \u2248122 (mean 93.8 + safety \u224828), on-hand 11 \u2192 order 122\u221211 \u2248111 to achieve the intended high service level without excess holding.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 111
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 123})
+
+Period 6 (Period_6) Demand: {
+  "action": {
+    "chips(Regular)": 167
+  }
+}
+
+=== Period 6 Summary ===
+chips(Regular): ordered=111, arrived=111 units (ordered on Period 6, lead_time was 0 periods), starting on-hand inventory=122, demand=167, sold=122, ending on-hand inventory=0
+Daily Profit: $2318.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2318.00
+
+======================================================================
+Period 7 (Period_7) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 101.82
+  Empirical std: 30.88
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 101.82
+  sigma_hat (\u03c3\u0302): 30.88
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 152.61
+  Current inventory: 0
+  Cap value: 152.61
+  OR recommends (capped): 153
+  OR recommends (uncapped): 153
+======================================================================
+
+
+Period 7 (Period_7) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows every order arriving in the same period (Period 1\u21921, P2\u21922, ... P6\u21926). Promised L=0 is confirmed (carry-over insight already recorded in Period 5). Therefore orders placed now will arrive during this same period's arrival resolution and be available to satisfy demand this period.\n\nInventory & pipeline: On-hand = 0, in-transit = 0, so no buffer. Because confirmed L=0, we only need to cover (L+1)=1 period of demand when placing the order.\n\nDemand analysis: Recent realized demands (Periods 1\u20136) were: 56, 98, 137, 82, 111, 167. There is a clear spike in Period 6 to 167 units; this is a single-period high but may indicate increased short-term demand. OR's capped base-stock recommendation is 153 units (uses historical/proposed statistics and promised L). Given profit $19 vs holding $1 (critical fractile \u22480.95), we should bias toward higher service (low stockout risk).\n\nDecision logic: With zero on-hand and a high recent demand (167), I raise OR's 153 to 170 units to (a) cover a likely repeat of the high demand this period, (b) accept modest additional holding cost ($1/unit) given high profit per unit, and (c) avoid a stockout which would forfeit a high profit margin. This is a conservative upward adjustment of +17 units (~11% above OR) to protect service given the recent spike and confirmed 0 lead time.\n\nAction: order 170 units for chips(Regular).",
+  "short_rationale_for_human": "OR recommended 153 units but recent demand spiked to 167 and lead time is confirmed 0; with on-hand=0 I increase to 170 units to avoid stockout while accepting small holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 170
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 153})
+
+Period 7 (Period_7) Demand: {
+  "action": {
+    "chips(Regular)": 135
+  }
+}
+
+=== Period 7 Summary ===
+chips(Regular): ordered=170, arrived=170 units (ordered on Period 7, lead_time was 0 periods), starting on-hand inventory=170, demand=135, sold=135, ending on-hand inventory=35
+Daily Profit: $2565.00, Daily Holding Cost: $35.00
+Daily Reward (R_t): $2530.00
+
+======================================================================
+Period 8 (Period_8) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 104.58
+  Empirical std: 30.96
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 104.58
+  sigma_hat (\u03c3\u0302): 30.96
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 155.51
+  Current inventory: 35
+  Cap value: 155.51
+  OR recommends (capped): 121
+  OR recommends (uncapped): 121
+======================================================================
+
+
+Period 8 (Period_8) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Concluded history (Periods 1\u20137) repeatedly shows orders arriving same period (lead_time = 0). Orders placed this Period 8 will arrive during Period 8 and can satisfy Period 8 demand. No in-transit units are outstanding.\n\nStep 2 \u2014 Inventory position: On-hand = 35, In-transit = 0, so pipeline_inventory = 35. With lead_time=0, we must cover current-period demand after placing the order.\n\nStep 3 \u2014 Demand estimate from history: Observed demands (Periods 1\u20137) = [56, 98, 137, 82, 111, 167, 135]. Empirical mean \u03bc\u0304 \u2248 112.29 units/period; sample std dev \u03c3\u0304 \u2248 37.44 units.\n\nStep 4 \u2014 OR baseline check: OR (using promised L=0) computes \u03bc\u0302=112.29, \u03c3\u0302=37.44, critical fractile q = 19/(19+1)=0.95 \u2192 z*\u22481.645. Base stock = \u03bc\u0302 + z*\u03c3\u0302 \u2248 173.9. Uncapped order_raw = base_stock \u2212 pipeline_inventory \u2248 173.9 \u2212 35 = 138.9. OR applies its cap and recommends 121 units (provided above). This cap smooths order swings when pipeline is low.\n\nStep 5 \u2014 Decision tradeoffs: Profit per unit is large ($19) vs holding cost $1 \u2014 high service level justified. Recent demand includes several high periods (167, 137, 135) so stocking conservatively high reduces lost sales. Because lead time is confirmed 0, ordered units immediately protect against stockouts this period. Holding cost is modest relative to stockout cost (profit), so following OR's capped, conservative recommendation is appropriate.\n\nFinal action: Follow OR recommendation and order 121 units. This brings immediate available inventory to 35 + 121 = 156 units, which covers expected mean demand (~112) plus safety stock to avoid stockouts in light of observed volatility. \n\nRisk notes: If demand were to drop sharply and persist, we would scale back; but current 7-period history contains multiple high-demand periods, and there is strong economic incentive to keep service high given profit/holding ratio.",
+  "short_rationale_for_human": "Following OR's recommendation to order 121 units \u2014 lead time is confirmed 0 so these arrivals will satisfy Period 8 demand, and on-hand (35) + 121 = 156 comfortably covers the mean demand (~112) plus safety stock given observed volatility.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 121
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 121})
+
+Period 8 (Period_8) Demand: {
+  "action": {
+    "chips(Regular)": 128
+  }
+}
+
+=== Period 8 Summary ===
+chips(Regular): ordered=121, arrived=121 units (ordered on Period 8, lead_time was 0 periods), starting on-hand inventory=156, demand=128, sold=128, ending on-hand inventory=28
+Daily Profit: $2432.00, Daily Holding Cost: $28.00
+Daily Reward (R_t): $2404.00
+
+======================================================================
+Period 9 (Period_9) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 106.38
+  Empirical std: 30.34
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 106.38
+  sigma_hat (\u03c3\u0302): 30.34
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 156.30
+  Current inventory: 28
+  Cap value: 156.30
+  OR recommends (capped): 129
+  OR recommends (uncapped): 129
+======================================================================
+
+
+Period 9 (Period_9) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Concluded history through Period 8 shows every order arriving in the same period it was placed (P1\u2192P1, P2\u2192P2, ... P8\u2192P8). This confirms actual lead time = 0 (matches the carry-over insight). Therefore any order placed now will arrive before demand in Period 9 and be available for sales this period.\n\nStep 2 \u2014 Demand & inventory picture: Recent realized single-period demands (P5\u2013P8) are 111, 167, 135, 128; the 4-period average is \u2248135 units. Earlier periods were lower, but the most recent four-period window shows a sustained higher demand regime (~135/day). Current on-hand = 28, in-transit = 0; because lead time = 0, ordered units arrive within this period and immediately increase available stock.\n\nStep 3 \u2014 OR recommendation comparison: OR suggests ordering 129 units based on its base-stock/capped policy. Given profit = $19 and holding = $1, the high critical fractile (\u22480.95) justifies keeping safety stock to avoid stockouts. OR's 129 + current on-hand 28 \u2192 157 available, which provides a buffer above the recent average demand (~135) and aligns with the high service-level implicit in the cost parameters.\n\nStep 4 \u2014 Decision & justification: I follow the OR recommendation of 129 units. Rationale: confirmed lead time = 0 means we can rely on same-period arrivals to meet demand; recent demand average (~135) is slightly above OR's single-period implicit forecast but OR's order (129) plus on-hand (28) yields ample coverage with a safety buffer while holding cost is low relative to profit. Ordering significantly less risks stockouts (lost profit $19 per unit), while ordering much more only incurs small holding cost ($1/unit/period). Therefore ordering 129 balances risk and inventory cost.\n\nStep 5 \u2014 Execution implications: The 129 units will arrive this period and be available for Period 9 demand. Monitor subsequent concluded periods for confirmation that demand remains in the recent higher regime; if elevated demand persists for 3+ periods, record a carry-over insight for a demand regime shift.",
+  "short_rationale_for_human": "Ordering OR's recommended 129 units because actual lead time = 0 (same-period arrivals) and recent average demand (~135) is high; 129 + on-hand 28 gives a comfortable buffer while holding cost is low relative to profit.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 129
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 129})
+
+Period 9 (Period_9) Demand: {
+  "action": {
+    "chips(Regular)": 106
+  }
+}
+
+=== Period 9 Summary ===
+chips(Regular): ordered=129, arrived=129 units (ordered on Period 9, lead_time was 0 periods), starting on-hand inventory=157, demand=106, sold=106, ending on-hand inventory=51
+Daily Profit: $2014.00, Daily Holding Cost: $51.00
+Daily Reward (R_t): $1963.00
+
+======================================================================
+Period 10 (Period_10) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 106.36
+  Empirical std: 29.15
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 106.36
+  sigma_hat (\u03c3\u0302): 29.15
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 154.31
+  Current inventory: 51
+  Cap value: 154.31
+  OR recommends (capped): 104
+  OR recommends (uncapped): 104
+======================================================================
+
+
+Period 10 (Period_10) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead-time & pipeline: Concluded history through Period 9 shows every order arriving in the same period it was placed (carry-over insight from Period 5). Promised lead time = 0 is confirmed in practice, so orders placed now will arrive within the same period and be available for that period's demand.\n\nStep 2 \u2014 Demand estimate: Use realized demands (Periods 1\u20139): {56,98,137,82,111,167,135,128,106}. Mean demand = 1020/9 = 113.33 units/period. Sample std dev \u2248 32.96 units.\n\nStep 3 \u2014 OR baseline check: OR recommends 104 units. Recomputing OR-style base-stock with L=0: \u03bc\u0302 = 113.33, \u03c3\u0302 = 32.96, critical fractile q = profit/(profit+holding) = 19/20 = 0.95 \u2192 z*\u22481.645. base_stock = \u03bc\u0302 + z*\u03c3\u0302 \u2248 113.33 + 1.645\xd732.96 \u2248 167.5. Pipeline inventory = on-hand + in-transit = 51 + 0 = 51. order_raw \u2248 167.5 \u2212 51 = 116.5. With L=0 the OR cap equals the same base_stock term, so capped order \u2248 116.5 (OR's given 104 is slightly lower, possibly from different historical weighting).\n\nStep 4 \u2014 Decision logic & risk tradeoffs: Because lead time is confirmed 0, any order arrives in time for the current period demand; there is no multi-period pipeline to cover. Expected single-period demand is ~113 units. On-hand 51 is well below expected demand. Given high profit ($19) vs low holding cost ($1), the critical fractile is 0.95, so we should target a high service level to avoid missed sales. That justifies ordering up to the computed base-stock target. Ordering ~116 units (rounded from 116.5) brings on-hand+arrival to ~167 which matches the base-stock and covers expected demand plus safety stock for volatility.\n\nStep 5 \u2014 Final action: Order 116 units for chips(Regular). This slightly increases OR's 104 recommendation toward the mathematically consistent base-stock level (116) based on the confirmed zero lead time, recent realized mean demand of ~113 units, and high profit/low holding cost which favors a high service level.\n\nInventory impact summary: On-hand 51 + arrival 116 -> ~167 available this period, which meets the base-stock target and should minimize stockouts while incurring modest holding cost ($1/unit/period) on any leftover inventory.",
+  "short_rationale_for_human": "Increased OR's 104\u2192116 units because lead time is confirmed 0 and expected single-period demand \u2248113; with high profit vs low holding cost (q\u22480.95) we should stock to the base-stock target (~167 total on-hand) to avoid costly stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 116
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 104})
+
+Period 10 (Period_10) Demand: {
+  "action": {
+    "chips(Regular)": 114
+  }
+}
+
+=== Period 10 Summary ===
+chips(Regular): ordered=116, arrived=116 units (ordered on Period 10, lead_time was 0 periods), starting on-hand inventory=167, demand=114, sold=114, ending on-hand inventory=53
+Daily Profit: $2166.00, Daily Holding Cost: $53.00
+Daily Reward (R_t): $2113.00
+
+======================================================================
+Period 11 (Period_11) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 106.87
+  Empirical std: 28.16
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 106.87
+  sigma_hat (\u03c3\u0302): 28.16
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 153.19
+  Current inventory: 53
+  Cap value: 153.19
+  OR recommends (capped): 101
+  OR recommends (uncapped): 101
+======================================================================
+
+
+Period 11 (Period_11) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead-time & pipeline: Concluded history through Period 10 shows every order arrived same period (lead_time=0 confirmed at Period 5 and repeatedly observed thereafter). Current on-hand=53, in-transit=0. With lead_time=0 an order placed now will arrive and be available for Period 11 demand.\n\nStep 2 \u2014 Demand assessment: Recent realized single-period demands (Periods 6\u201310) = [167, 135, 128, 106, 114]. Recent average \u2248 130 units/period; sample std dev \u2248 23.6 units. This recent window reflects current demand regime better than the older 5-sample dataset OR may be using.\n\nStep 3 \u2014 Service level / safety stock: Profit= $19, Holding=$1 \u2192 critical fractile q = 19/(19+1)=0.95 \u2192 z* \u2248 1.645. For single-period (L=0) forecast: \u03bc\u0302\u2248130, \u03c3\u0302\u224823.6 \u2192 safety stock z*\u03c3\u0302 \u2248 38.9. Base-stock target \u2248 130 + 38.9 \u2248 169 units on-hand after arrival.\n\nStep 4 \u2014 Order quantity calculation: Target on-hand after arrival = ~169. Current on-hand = 53, in-transit = 0. Required order \u2248 169 \u2212 53 = 116 units. OR recommended 101 units (capped baseline). I increase slightly to 116 because recent realized mean demand (~130) is higher than OR's implicit mean and the profit/holding ratio calls for a high service level. With lead_time=0 this order will immediately protect against stockouts this period.\n\nRisk/holding tradeoff: Holding cost is low ($1) relative to profit ($19), so the higher safety stock is justified to avoid lost sales. If upcoming periods show a persistent drop in demand, we'll adjust downward, but current recent data support ordering 116.\n\nFinal action: order 116 units of chips(Regular).",
+  "short_rationale_for_human": "Increased OR's 101\u2192116 units: recent average demand (Periods 6\u201310 \u2248130) exceeds OR's baseline and with confirmed lead_time=0 I order 116 to reach a ~169 unit base-stock (130 mean + 1.645\xb723.6 safety) to avoid stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 116
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 101})
+
+Period 11 (Period_11) Demand: {
+  "action": {
+    "chips(Regular)": 108
+  }
+}
+
+=== Period 11 Summary ===
+chips(Regular): ordered=116, arrived=116 units (ordered on Period 11, lead_time was 0 periods), starting on-hand inventory=169, demand=108, sold=108, ending on-hand inventory=61
+Daily Profit: $2052.00, Daily Holding Cost: $61.00
+Daily Reward (R_t): $1991.00
+
+======================================================================
+Period 12 (Period_12) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 106.94
+  Empirical std: 27.21
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 106.94
+  sigma_hat (\u03c3\u0302): 27.21
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 151.69
+  Current inventory: 61
+  Cap value: 151.69
+  OR recommends (capped): 91
+  OR recommends (uncapped): 91
+======================================================================
+
+
+Period 12 (Period_12) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history through Period 11 shows every order arrived in the same period it was placed (arrived=ordered, lead_time=0 for Periods 1\u201311). The provided carry-over insight already recorded lead time = 0 at Period 5; that remains valid. Inventory & recent demand: On-hand=61, in-transit=0. The OR recommendation is 91 units based on the original 5-sample demand (mean 93.8, std ~16.85) and promised L=0. However, realized demand since Period 6 has been consistently higher for six periods (Period 6\u201311 demands: 167, 135, 128, 106, 114, 108). This is a sustained regime shift: average demand over Periods 6\u201311 = 126.33 and sample std \u2248 22.95 \u2014 roughly a +34.6% increase in mean demand vs the early-sample mean (93.8). Policy and order sizing: With confirmed lead time = 0, any order placed now will arrive within this same period and be available for demand this period. Using the risk parameters (profit $19, holding $1 \u2192 critical fractile q=0.95 \u2192 z*=\u03a6\u22121(0.95)=1.645) and the recent-demand stats yields a recommended base-stock \u2248 164 units (\u03bc_recent 126.33 + 1.645\xd7\u03c3_recent 22.95 \u2248 164.1). To target that base-stock given on-hand 61 and zero pipeline, order_raw \u2248 164.1 \u2212 61 \u2248 103.1 \u2192 103 units. I override OR's 91 up to 103 to reflect the sustained higher-demand regime. Rounding and practical note: I order an integer quantity (103). This trades additional holding cost ($1/unit/period) against a much larger per-unit profit ($19) and reduces the high risk of stockouts under the new higher demand. Final action: order 103 units of chips(Regular).",
+  "short_rationale_for_human": "Increased OR's 91\u2192103 units because lead time is confirmed 0 and recent demand (Periods 6\u201311 avg 126.3) is ~35% higher than the early-sample mean; raise base-stock to avoid stockouts.",
+  "carry_over_insight": "Demand regime shift starting Period 6: avg demand increased from 93.8 (Periods 1\u20135) to 126.33 (Periods 6\u201311), +34.6% (evidence: Period6\u201311 demands 167,135,128,106,114,108; mean=126.33, std\u224822.95).",
+  "action": {
+    "chips(Regular)": 103
+  }
+}
+Carry-over insight: Demand regime shift starting Period 6: avg demand increased from 93.8 (Periods 1\u20135) to 126.33 (Periods 6\u201311), +34.6% (evidence: Period6\u201311 demands 167,135,128,106,114,108; mean=126.33, std\u224822.95).
+======================================================================
+  (OR recommended: {'chips(Regular)': 91})
+
+Period 12 (Period_12) Demand: {
+  "action": {
+    "chips(Regular)": 121
+  }
+}
+
+=== Period 12 Summary ===
+chips(Regular): ordered=103, arrived=103 units (ordered on Period 12, lead_time was 0 periods), starting on-hand inventory=164, demand=121, sold=121, ending on-hand inventory=43
+Daily Profit: $2299.00, Daily Holding Cost: $43.00
+Daily Reward (R_t): $2256.00
+
+======================================================================
+Period 13 (Period_13) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 107.76
+  Empirical std: 26.56
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 107.76
+  sigma_hat (\u03c3\u0302): 26.56
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 151.46
+  Current inventory: 43
+  Cap value: 151.46
+  OR recommends (capped): 109
+  OR recommends (uncapped): 109
+======================================================================
+
+
+Period 13 (Period_13) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201312) repeatedly shows orders arriving in the same period they were placed (e.g., P1\u2192P1, P2\u2192P2, ..., P12\u2192P12). Promised lead time = 0 is confirmed in carry-over insights, so any order placed now will arrive during this period's arrival resolution and will be available to meet Period 13 demand. Inventory & demand analysis: On-hand = 43, in-transit = 0. Recent demand regime (Periods 6\u201312) has higher mean than early periods; the provided carry-over insight documented a sustained regime shift (Periods 6\u201311 mean \u2248126.33) and Period 12 demand =121. Recent 5-period average (Periods 8\u201312 = 128,106,114,108,121) \u2248115.4, but the regime mean ~126 suggests elevated demand and occasional spikes (e.g., 167 in Period 6). OR recommendation: 109 units. OR uses the promised lead time and its capped base-stock computation (critical fractile q = 19/(19+1)=0.95, z\u22481.645), producing a relatively high order to target service. My decision logic: With lead time confirmed 0, ordering now will immediately replenish stock for Period 13. On-hand (43) + OR order (109) = 152 units, which covers the regime mean (~126) plus safety to protect against spikes (like 167) and aligns with OR's high service target driven by high profit:holding ratio. Given holding cost is low ($1) relative to profit ($19), the cost of extra inventory is small compared to stockout losses; thus I follow the OR recommendation to prioritize service. Final strategy: Place order = 109 for chips(Regular). This keeps service high, avoids stockouts during the confirmed higher-demand regime, and is consistent with OR's capped risk-aware recommendation.",
+  "short_rationale_for_human": "Followed OR's recommendation of 109 units because lead time is confirmed 0 (arrives this period), demand has shifted up (regime mean \u2248126) and on-hand 43+109=152 provides safe coverage with low holding cost relative to profit.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 109
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 109})
+
+Period 13 (Period_13) Demand: {
+  "action": {
+    "chips(Regular)": 68
+  }
+}
+
+=== Period 13 Summary ===
+chips(Regular): ordered=109, arrived=109 units (ordered on Period 13, lead_time was 0 periods), starting on-hand inventory=152, demand=68, sold=68, ending on-hand inventory=84
+Daily Profit: $1292.00, Daily Holding Cost: $84.00
+Daily Reward (R_t): $1208.00
+
+======================================================================
+Period 14 (Period_14) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 105.56
+  Empirical std: 27.42
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 105.56
+  sigma_hat (\u03c3\u0302): 27.42
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 150.66
+  Current inventory: 84
+  Cap value: 150.66
+  OR recommends (capped): 67
+  OR recommends (uncapped): 67
+======================================================================
+
+
+Period 14 (Period_14) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201313) consistently shows orders arriving same period they were placed \u2192 actual lead time = 0 (confirmed). Inventory & pipeline: On-hand = 84, In-transit = 0. Any order placed now will arrive during this period's arrival resolution and will be available to meet Period 14 demand. Demand outlook: Historical samples show a sustained demand regime shift starting Period 6 (carry-over insight): Periods 6\u201311 mean \u2248126 units; Period 12 = 121; Period 13 = 68 (single low outlier). The recent drop in Period 13 appears singular and not yet a sustained reversal of the higher regime. OR recommendation: 67 units (capped base-stock using promised lead time and historical samples). Adjustment reasoning: Because lead time = 0 and there is no pipeline, my order directly increases on-hand for immediate sales. To maximize Profit \xd7 units_sold \u2212 HoldingCost \xd7 ending_inventory, I target inventory near the confirmed higher single-period demand mean (~126) rather than the lower OR cap. Current on-hand (84) + OR order (67) would create 151 units, which risks higher holding cost; OR\u2019s 67 is higher than needed to meet the regime mean. I choose to top up to the regime mean: target on-hand \u2248 126 \u2192 order = 126 \u2212 84 = 42 units. This balances capturing expected sales under the elevated regime while limiting unnecessary holding cost if the Period 13 dip is not sustained. Execution: Place order for 42 units (arrives this period). Monitoring: If next periods show continued low demand (several periods below ~100), switch to reduced targets; if demand stays near 120+, continue ordering to maintain \u2248single-period mean.",
+  "short_rationale_for_human": "Order increased to bring on-hand to the confirmed higher demand regime mean (~126). With lead time = 0 and no pipeline, I order 42 units (84 on-hand \u2192 126 target) to meet expected sales while avoiding excess holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 42
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 67})
+
+Period 14 (Period_14) Demand: {
+  "action": {
+    "chips(Regular)": 106
+  }
+}
+
+=== Period 14 Summary ===
+chips(Regular): ordered=42, arrived=42 units (ordered on Period 14, lead_time was 0 periods), starting on-hand inventory=126, demand=106, sold=106, ending on-hand inventory=20
+Daily Profit: $2014.00, Daily Holding Cost: $20.00
+Daily Reward (R_t): $1994.00
+
+======================================================================
+Period 15 (Period_15) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 105.58
+  Empirical std: 26.65
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 105.58
+  sigma_hat (\u03c3\u0302): 26.65
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 149.42
+  Current inventory: 20
+  Cap value: 149.42
+  OR recommends (capped): 130
+  OR recommends (uncapped): 130
+======================================================================
+
+
+Period 15 (Period_15) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201314) consistently shows orders arriving same period they were placed; carry-over insight already records lead time = 0. Therefore orders placed now will arrive during this period and be available for Period 15 demand. Inventory & pipeline: on-hand = 20, in-transit = 0. Demand outlook: historical series shows a sustained regime shift starting Period 6 (carry-over insight). Recent demands (Periods 6\u201314) average \u2248117 units/period (167,135,128,106,114,108,121,68,106 \u2192 sum 1053/9 \u2248117). The earlier baseline (Periods 1\u20135) mean was \u224893.8; we should plan using the higher post-shift demand. OR recommendation: 130 units (base-stock style) uses promised lead time and full history; it targets a high service level because profit/holding implies q\u22480.95 and therefore large safety stock. Adjustment decision: With lead time = 0, any order arrives immediately, so target inventory for the period should roughly equal expected period demand plus modest safety buffer. Given on-hand = 20, meeting the recent-period expected demand (~117) requires ordering \u224897; to provide a small safety buffer for variability but avoid excessive holding (holding cost = $1/unit/period), I increase that to 110. This yields target on-hand \u2248130 (20 current + 110 ordered), which is essentially the OR's base-stock target but I trim OR's suggested 130 down to 110 because: (a) recent 9-period average is ~117 (not as high as OR's implied longer-run upper bound), (b) Period 13 was 68 showing volatility downward and we should avoid unnecessary holding; (c) lead time = 0 lets us respond quickly next period if demand changes. Final action: order 110 units now. Expected effect: Meet most demand this period while keeping holding cost moderate. Follow-up: monitor Period 15 conclude to confirm demand observation and adjust next-period order accordingly.",
+  "short_rationale_for_human": "Order increased close to OR's target but trimmed to 110 (from OR's 130) because lead time = 0 and recent post-shift demand averages \u2248117; with 20 on-hand, 110 fills expected demand plus a small safety buffer while limiting holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 110
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 130})
+
+Period 15 (Period_15) Demand: {
+  "action": {
+    "chips(Regular)": 81
+  }
+}
+
+=== Period 15 Summary ===
+chips(Regular): ordered=110, arrived=110 units (ordered on Period 15, lead_time was 0 periods), starting on-hand inventory=130, demand=81, sold=81, ending on-hand inventory=49
+Daily Profit: $1539.00, Daily Holding Cost: $49.00
+Daily Reward (R_t): $1490.00
+
+======================================================================
+Period 16 (Period_16) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 104.35
+  Empirical std: 26.52
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 104.35
+  sigma_hat (\u03c3\u0302): 26.52
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 147.96
+  Current inventory: 49
+  Cap value: 147.96
+  OR recommends (capped): 99
+  OR recommends (uncapped): 99
+======================================================================
+
+
+Period 16 (Period_16) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Summary of facts and inference: Lead time = 0 periods is well established in carry-over insights and every concluded period (P1\u2192P15) shows same-period arrivals, so any order placed now will arrive during Period 16 and be available for Period 16 demand. Current on-hand = 49, in-transit = 0. OR recommends 99 units, but OR uses all historical samples and the promised lead time; we should blend recent demand evidence with the OR baseline.\n\nDemand assessment: Recent five-period demand (Periods 11\u201315) = [108, 121, 68, 106, 81], mean = 96.8, sample std \u2248 21.65. The longer-run regime shift (Periods 6\u201311) increased mean historically, but Periods 13 and 15 show notable dips; immediate recent mean is ~97 units.\n\nInventory target (base-stock logic adapted to observed recent demand and confirmed lead time 0): With profit = $19 and holding = $1, critical fractile q = 19/20 = 0.95 \u2192 z* \u2248 1.645. For L=0, \u03bc\u0302 = 96.8 and \u03c3\u0302 = 21.65, so base_stock \u2248 \u03bc\u0302 + z*\u03c3\u0302 \u2248 96.8 + 1.645\xd721.65 \u2248 132.4 units. With on-hand 49 and no pipeline, order_raw = base_stock \u2212 on-hand \u2248 132.4 \u2212 49 = 83.4.\n\nAdjustment vs OR recommendation: OR recommends 99. My calculation using recent demand yields an order of ~83. I reduce OR's 99 to 83 because: (1) lead time = 0 means new units are immediately useful; (2) recent demand has softened vs the higher mid-period regime, so using the immediate recent mean avoids overstocking; (3) holding cost, while low, still penalizes large ending inventory accumulated when demand has dipped. Ordering 83 units brings expected available inventory close to the desired base-stock while limiting extra holding cost risk.\n\nOperational notes: Order will arrive during Period 16 and be available to satisfy Period 16 demand. No new carry-over insight to record: the established lead-time=0 and earlier demand-regime shift are already recorded; recent fluctuations are not sufficiently sustained (need 3+ periods of a new consistent pattern) to create a new carry-over insight.\n",
+  "short_rationale_for_human": "Order reduced OR's 99 to 83 units \u2014 lead time is confirmed 0 so stock arrives immediately, and recent 5-period demand mean (~97) plus safety (z*=1.645) implies base-stock \u2248132; with 49 on hand, order \u224883 to meet that target while avoiding excess holding.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 83
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 99})
+
+Period 16 (Period_16) Demand: {
+  "action": {
+    "chips(Regular)": 38
+  }
+}
+
+=== Period 16 Summary ===
+chips(Regular): ordered=83, arrived=83 units (ordered on Period 16, lead_time was 0 periods), starting on-hand inventory=132, demand=38, sold=38, ending on-hand inventory=94
+Daily Profit: $722.00, Daily Holding Cost: $94.00
+Daily Reward (R_t): $628.00
+
+======================================================================
+Period 17 (Period_17) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 101.19
+  Empirical std: 29.62
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 101.19
+  sigma_hat (\u03c3\u0302): 29.62
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 149.92
+  Current inventory: 94
+  Cap value: 149.92
+  OR recommends (capped): 56
+  OR recommends (uncapped): 56
+======================================================================
+
+
+Period 17 (Period_17) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time & arrivals: Concluded history (Periods 1\u201316) and the provided carry-over insight confirm actual lead time = 0 (orders arrive same period). Therefore anything I order this decision will arrive during the current period's arrival resolution and can be used to meet Period 17 demand.\n\nInventory & demand assessment: On-hand = 94, in-transit = 0. Recent realized demands (Periods 12\u201316) = [121, 68, 106, 81, 38]; 5-period mean \u2248 82.8 and std \u2248 28.8. Longer-run regime shown earlier increased mean to ~126 for Periods 6\u201311, but the last five periods show a material downward move (not yet recorded as a new carry-over insight because signal is recent and mixed). Given lead time = 0, we only need to cover one period of demand plus a small buffer for volatility.\n\nOR recommendation comparison: OR recommends 56 (it uses promised lead time and historical data, producing a high service-level base-stock). With on-hand=94 we already exceed the recent one-period demand estimate (~83) and would incur unnecessary holding cost if we accept the full OR order. Profit per unit is high ($19) vs holding cost $1, which biases OR toward larger safety stock; but since lead time = 0 we can top up later if demand spikes.\n\nDecision & justification: I reduce OR's 56 to a small top-up order of 20 units. Rationale: on-hand 94 > recent single-period demand estimate (~83), so no large replenishment is needed; but demand variance and earlier higher-demand regime argue keeping a modest buffer. Ordering 20 units (arrive immediately) raises available stock to 114, which covers a possible spike toward the earlier elevated mean (~126) only partially but keeps holding costs low and preserves flexibility for next period decisions (we can reorder again with zero lead time if demand rises). This balances service (we still have a comfortable buffer vs recent demand) and holding cost minimization.\n\nRisk considerations: If demand returns to the higher regime (\u2248125+), this small order may be insufficient and could cause stockouts; however, with lead time = 0 we can quickly respond in the next decision period. If demand unexpectedly spikes this period, some stockout risk remains but is minimized by keeping on-hand > recent mean.\n",
+  "short_rationale_for_human": "Reduced OR's 56 \u2192 20 units because lead time = 0 and on-hand 94 already exceeds recent one-period mean demand (~83); ordering a small 20-unit buffer limits holding cost while allowing quick reorders if demand spikes.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 20
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 56})
+
+Period 17 (Period_17) Demand: {
+  "action": {
+    "chips(Regular)": 62
+  }
+}
+
+=== Period 17 Summary ===
+chips(Regular): ordered=20, arrived=20 units (ordered on Period 17, lead_time was 0 periods), starting on-hand inventory=114, demand=62, sold=62, ending on-hand inventory=52
+Daily Profit: $1178.00, Daily Holding Cost: $52.00
+Daily Reward (R_t): $1126.00
+
+======================================================================
+Period 18 (Period_18) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 99.41
+  Empirical std: 30.09
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 99.41
+  sigma_hat (\u03c3\u0302): 30.09
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 148.91
+  Current inventory: 52
+  Cap value: 148.91
+  OR recommends (capped): 97
+  OR recommends (uncapped): 97
+======================================================================
+
+
+Period 18 (Period_18) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows lead time = 0 periods (confirmed in carry-over insights: orders arrived same period repeatedly). Therefore any order placed now will arrive during this period before demand is realized and will immediately increase on-hand inventory.\n\nInventory & demand analysis: On-hand = 52, in-transit = 0. Historical demands (Periods 13\u201317 = 68,106,81,38,62) show a recent 5-period mean of ~71 units, noticeably below the elevated regime (Periods 6\u201311 mean ~126) recorded earlier. The OR baseline recommends 97 units using long-run stats and the promised lead time; that recommendation aims high because profit/holding gives a very high critical fractile (q=19/20=0.95), but it mixes older high-demand periods into the estimate.\n\nRisk tradeoffs and adjustment: With lead time = 0, ordering large quantities immediately increases holding cost exposure. Current on-hand (52) already covers a substantial portion of recent expected demand (~71). To avoid overstock while maintaining high service, I scale OR's 97 down to a smaller replenishment that plus on-hand covers one period's expected demand plus modest safety stock. I choose 45 units: arriving immediately it yields on-hand ~97 (52+45) which is ~1.35\xd7 the recent single-period mean (71) and still leaves room to sell during a possible uptick without incurring excessive holding cost.\n\nDecision summary: Order 45 units (below OR's 97) because recent five-period demand has softened (mean ~71) and on-hand already provides significant coverage; lead time = 0 makes this conservative replenishment effective at avoiding stockouts while limiting holding cost.\n",
+  "short_rationale_for_human": "Reduced OR's 97 \u2192 45 units: lead time = 0 so order arrives immediately; on-hand 52 + 45 = 97 which comfortably covers recent demand (5-period mean \u224871) while avoiding excess holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 45
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 97})
+
+Period 18 (Period_18) Demand: {
+  "action": {
+    "chips(Regular)": 36
+  }
+}
+
+=== Period 18 Summary ===
+chips(Regular): ordered=45, arrived=45 units (ordered on Period 18, lead_time was 0 periods), starting on-hand inventory=97, demand=36, sold=36, ending on-hand inventory=61
+Daily Profit: $684.00, Daily Holding Cost: $61.00
+Daily Reward (R_t): $623.00
+
+======================================================================
+Period 19 (Period_19) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 96.65
+  Empirical std: 32.24
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 96.65
+  sigma_hat (\u03c3\u0302): 32.24
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 149.68
+  Current inventory: 61
+  Cap value: 149.68
+  OR recommends (capped): 89
+  OR recommends (uncapped): 89
+======================================================================
+
+
+Period 19 (Period_19) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Summary of observations and inference:\n- Lead time: Confirmed as 0 periods (already in carry-over insights). Orders arrive same period they are placed so any order now will be available for Period 19 demand.\n- Inventory position: On-hand = 61, In-transit = 0, so pipeline_inventory = 61 available for Period 19 demand.\n- Recent demand pattern: Periods 13\u201318 demands = [68,106,81,38,62,36], mean \u2248 65.17, sample std \u2248 26.6. This is a sustained lower-demand regime for 6 periods compared with the earlier high regime (Periods 6\u201311 mean \u2248126.3). This drop is significant and likely persistent.\n- OR recommendation: 89 units (based on older history and promised lead time). OR assumes a higher mean demand and does not weight recent decline.\n- Service / cost tradeoff: profit = $19, holding = $1 gives critical fractile q = 19/(19+1) = 0.95 \u2192 z* \u2248 1.645. Using recent-demand stats (mean \u224865.17, \u03c3\u224826.6) the single-period base_stock \u2248 \u03bc + z*\u03c3 \u2248 65.17 + 1.645*26.6 \u2248 109 units. Required order = base_stock \u2212 pipeline_inventory \u2248 109 \u2212 61 = 48 units. The OR cap (also \u2248109) does not bind here. \n- Decision rationale: Because demand has clearly shifted down for 6 consecutive periods, I will reduce the order relative to OR's 89 to avoid excessive holding costs while keeping a high service target (95% fractile). With lead time = 0 the order arrives in-time for Period 19 demand. Ordering 48 brings available inventory to ~109 units (on-hand 61 + 48 = 109), matching the recent-data-informed base stock for a 95% service level.\n- Risk notes: If demand unexpectedly rebounds toward the prior high regime, we may stockout; but evidence supports the lower-regime decision for now. Monitor future periods; if higher demand resumes for 3+ periods, update carry-over insights.\n",
+  "short_rationale_for_human": "Reduced OR's 89\u219248 units because recent 6-period mean demand fell to ~65 (vs prior ~126); with lead time=0 ordering 48 brings stock to ~109 (95% service target) and avoids excess holding cost.",
+  "carry_over_insight": "Demand regime shift at Period 13: avg demand dropped to ~65.2 (Periods 13\u201318 mean) from prior high-period mean 126.33 (Periods 6\u201311), \u2248\u221248.4% over six periods.",
+  "action": {
+    "chips(Regular)": 48
+  }
+}
+Carry-over insight: Demand regime shift at Period 13: avg demand dropped to ~65.2 (Periods 13\u201318 mean) from prior high-period mean 126.33 (Periods 6\u201311), \u2248\u221248.4% over six periods.
+======================================================================
+  (OR recommended: {'chips(Regular)': 89})
+
+Period 19 (Period_19) Demand: {
+  "action": {
+    "chips(Regular)": 25
+  }
+}
+
+=== Period 19 Summary ===
+chips(Regular): ordered=48, arrived=48 units (ordered on Period 19, lead_time was 0 periods), starting on-hand inventory=109, demand=25, sold=25, ending on-hand inventory=84
+Daily Profit: $475.00, Daily Holding Cost: $84.00
+Daily Reward (R_t): $391.00
+
+======================================================================
+Period 20 (Period_20) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 93.67
+  Empirical std: 34.76
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 93.67
+  sigma_hat (\u03c3\u0302): 34.76
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 150.83
+  Current inventory: 84
+  Cap value: 150.83
+  OR recommends (capped): 67
+  OR recommends (uncapped): 67
+======================================================================
+
+
+Period 20 (Period_20) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time & arrivals: Carry-over insight already confirms actual lead time = 0 (orders arrive same period). Current pipeline = 0 and any order placed now would arrive during this period's arrival resolution (but you only observe conclude next period). Inventory position: on-hand = 84, in-transit = 0. Demand outlook: recent realized demands (Periods 13\u201319) = [68,106,81,38,62,36,25], mean \u2248 59.4 units/period with noticeable downward trend versus the earlier high regime. OR recommendation = 67 units (OR uses historical mean and promised lead time). Economics: profit = $19/unit, holding = $1/unit/period \u2192 critical fractile q = 19/20 = 0.95 (z*\u22481.645) \u2014 OR's safety logic is visible in its recommendation. Decision logic: with lead time = 0 we can respond immediately next period, but ordering more now only increases ending on-hand and costs $1 per extra unit held while demand is weak. On-hand (84) already exceeds expected next-period demand (~59) plus a healthy safety buffer (84\u221259 \u2248 25 units). Placing OR's 67 would push ending inventory much higher, increasing holding costs without increasing sales (demand is the limiting factor). Therefore place no order this period to avoid unnecessary holding cost while still meeting expected demand. Follow-up: monitor upcoming periods; if demand consistently rebounds (\u2265~84 on average for 3+ periods), resume ordering to rebuild base stock. ",
+  "short_rationale_for_human": "Reduced OR's 67\u21920 units: on-hand 84 exceeds expected next-period demand (~59) and lead time=0, so ordering now would only raise holding costs without increasing sales.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 0
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 67})
+
+Period 20 (Period_20) Demand: {
+  "action": {
+    "chips(Regular)": 58
+  }
+}
+
+=== Period 20 Summary ===
+chips(Regular): ordered=0, arrived=0, starting on-hand inventory=84, demand=58, sold=58, ending on-hand inventory=26
+Daily Profit: $1102.00, Daily Holding Cost: $26.00
+Daily Reward (R_t): $1076.00
+
+======================================================================
+Period 21 (Period_21) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 92.24
+  Empirical std: 34.76
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 92.24
+  sigma_hat (\u03c3\u0302): 34.76
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 149.42
+  Current inventory: 26
+  Cap value: 149.42
+  OR recommends (capped): 124
+  OR recommends (uncapped): 124
+======================================================================
+
+
+Period 21 (Period_21) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead-time & arrivals: Carry-over insights and concluded history confirm actual lead time = 0 (orders placed arrive same period). Therefore an order placed now will be available to satisfy Period 21 demand. No in-transit inventory is outstanding.\n\nStep 2 \u2014 Inventory & recent demand: On-hand = 26, in-transit = 0. Recent realized demands (Periods 13\u201320) = [68,106,81,38,62,36,25,58]; recent mean \u2248 59.25, sample std \u2248 26.5. The longer-run history shows earlier high-demand regimes but a sustained drop beginning Period 13 (already recorded in carry-over insights), so I use the recent lower-demand regime for forecasting.\n\nStep 3 \u2014 OR recommendation comparison: OR recommends 124 units, but it uses older historical data and the promised lead time; given confirmed lead time=0 and the demand regime decline since Period 13, OR's 124 appears excessive and would produce high holding cost with little additional sales.\n\nStep 4 \u2014 Target calculation & final order: With profit $19 and holding $1 the critical fractile q = 19/(19+1) = 0.95 \u2192 z* \u2248 1.645. For a single-period review (L=0) I compute base_stock \u2248 \u03bc + z*\xb7\u03c3 \u2248 59.25 + 1.645\xb726.5 \u2248 103 units. Subtracting current on-hand (26) gives order_raw \u2248 77 units. This order will arrive this period (L=0) and provides high service (\u224895%) for the recent demand regime while limiting excess holding.\n\nStep 5 \u2014 Risk / rationale summary: This reduces OR's suggested quantity (124 \u2192 77) to reflect the confirmed lower-demand regime since Period 13 and current on-hand stock. Because lead time is 0, the units will be available immediately to meet Period 21 demand. I do not record a new carry-over insight because existing insights already capture the lead-time confirmation and the demand regime shifts.\n",
+  "short_rationale_for_human": "Reduced OR's 124\u219277 units: confirmed lead time = 0 and recent demand average \u224859 (std \u224826.5) implies a base-stock \u2248103; with on-hand 26, order \u224877 to hit ~95% service while avoiding excess holding.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 77
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 124})
+
+Period 21 (Period_21) Demand: {
+  "action": {
+    "chips(Regular)": 59
+  }
+}
+
+=== Period 21 Summary ===
+chips(Regular): ordered=77, arrived=77 units (ordered on Period 21, lead_time was 0 periods), starting on-hand inventory=103, demand=59, sold=59, ending on-hand inventory=44
+Daily Profit: $1121.00, Daily Holding Cost: $44.00
+Daily Reward (R_t): $1077.00
+
+======================================================================
+Period 22 (Period_22) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 90.96
+  Empirical std: 34.68
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 90.96
+  sigma_hat (\u03c3\u0302): 34.68
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 148.00
+  Current inventory: 44
+  Cap value: 148.00
+  OR recommends (capped): 105
+  OR recommends (uncapped): 105
+======================================================================
+
+
+Period 22 (Period_22) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 - Lead time and pipeline: Concluded history shows actual lead time = 0 (multiple confirmed arrivals same period); in-transit = 0 and any order placed now will arrive within this same period's arrival phase (and be visible in the conclude message). Step 2 - Inventory position: On-hand = 44, in-transit = 0. With lead time 0 we only need to cover current-period demand after ordering. Step 3 - Demand assessment: OR's recommendation (105) is based on longer/higher historical demand including the high regime (Periods 6\u201311). However recent realized demand has fallen materially. Look at recent demands (Periods 16\u201321): 38, 62, 36, 25, 58, 59 \u2192 mean \u2248 46.3 units. Even the earlier low-regime (Periods 13\u201318) mean was \u224865.2. The latest six periods indicate a sustained lower-demand regime. Step 4 - Cost tradeoffs & service target: Profit per unit = $19, holding cost = $1 implies very high critical fractile (q=0.95), which motivates stocking to avoid stockouts. But because lead time = 0 (fast replenishment within period) and we currently hold 44, we can safely carry less pipeline inventory and rely on same-period replenishment to meet small-to-moderate demand. Step 5 - Decision logic: Target on-hand after arrival should cover a plausible near-term demand spike while avoiding large holding cost. With on-hand 44 and recent mean \u224846, ordering about 20 units raises immediate available inventory to ~64, which covers ~1.4\xd7 recent mean and approximates the earlier low-regime mean (\u224865). This balances service (avoids immediate stockouts if demand is slightly above recent mean) and holding cost. Step 6 - Reconciliation with OR baseline: OR's 105 is much higher because it blends older high-demand periods and safety stock computed from a larger variance; given confirmed lead time 0 and 6 periods of lower demand, I reduce the order substantially. Action: order 20 units for chips(Regular).",
+  "short_rationale_for_human": "Reduced OR's recommendation from 105 to 20 units \u2014 actual lead time is 0 and recent demand has fallen (Periods 16\u201321 mean \u224846), so keeping ~64 on-hand (44+20) gives reasonable coverage without excess holding cost.",
+  "carry_over_insight": "Demand regime shift at Period 16: avg demand dropped to 46.3 (Periods 16\u201321) from prior low-regime avg \u224865.2 (Periods 13\u201318), \u2248\u221228.9%.",
+  "action": {
+    "chips(Regular)": 20
+  }
+}
+Carry-over insight: Demand regime shift at Period 16: avg demand dropped to 46.3 (Periods 16\u201321) from prior low-regime avg \u224865.2 (Periods 13\u201318), \u2248\u221228.9%.
+======================================================================
+  (OR recommended: {'chips(Regular)': 105})
+
+Period 22 (Period_22) Demand: {
+  "action": {
+    "chips(Regular)": 57
+  }
+}
+
+=== Period 22 Summary ===
+chips(Regular): ordered=20, arrived=20 units (ordered on Period 22, lead_time was 0 periods), starting on-hand inventory=64, demand=57, sold=57, ending on-hand inventory=7
+Daily Profit: $1083.00, Daily Holding Cost: $7.00
+Daily Reward (R_t): $1076.00
+
+======================================================================
+Period 23 (Period_23) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 89.70
+  Empirical std: 34.63
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 89.70
+  sigma_hat (\u03c3\u0302): 34.63
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 146.66
+  Current inventory: 7
+  Cap value: 146.66
+  OR recommends (capped): 140
+  OR recommends (uncapped): 140
+======================================================================
+
+
+Period 23 (Period_23) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows confirmed lead time = 0 (orders placed arrive same period). There are no in-transit units; arrivals happen in-period after our decision and are visible only in the conclude message. Inventory & demand analysis: On-hand = 7, in-transit = 0. Recent realized demands (Periods 18\u201322) = [36, 25, 58, 59, 57]; recent 5-period mean \u2248 47 units, sample std \u2248 15.6. The long-run history shows earlier regime swings, but the most recent five periods indicate a lower demand regime around ~47/day (consistent with the marked decline noted in carry-over insights through Period 22). OR recommendation = 140 units (base-stock cap policy using promised lead time and full history). That recommendation assumes a higher mean and large safety stock driven by profit/holding fractile; with lead time 0 and current low demand, 140 would create excessive holding cost and risk overstocking. Decision rule applied: because lead time = 0 we must cover (L+1)=1 period of demand after ordering. I target a conservative service level reflecting recent variability: target = recent mean (47) + z* \xd7 recent std (1.645 \xd7 15.6 \u2248 25.6) \u2248 72.6 total desired on-hand. Subtract current on-hand 7 \u2192 order \u2248 66 units. Rounding: place order of 66 units. This balances the high profit (favors some safety stock) against clear recent demand decline and the confirmed zero lead time (no need to pre-build multi-period pipeline). Comparison to OR: I reduce OR's 140 \u2192 66 because OR overweights older higher-demand periods and uses the promised lead time without using the confirmed zero lead time and recent regime decline. Carry-over insight: none new (no new sustained pattern since existing carry-over entries).",
+  "short_rationale_for_human": "Reduced OR's 140\u219266 units: recent 5-period mean demand \u224847 with sd\u224815.6 and lead-time confirmed 0, so order = (47 + 1.645\xb715.6) \u2212 on-hand(7) \u224866 to cover one-period demand with safety stock while avoiding heavy holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 66
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 140})
+
+Period 23 (Period_23) Demand: {
+  "action": {
+    "chips(Regular)": 72
+  }
+}
+
+=== Period 23 Summary ===
+chips(Regular): ordered=66, arrived=66 units (ordered on Period 23, lead_time was 0 periods), starting on-hand inventory=73, demand=72, sold=72, ending on-hand inventory=1
+Daily Profit: $1368.00, Daily Holding Cost: $1.00
+Daily Reward (R_t): $1367.00
+
+======================================================================
+Period 24 (Period_24) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 89.07
+  Empirical std: 34.15
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 89.07
+  sigma_hat (\u03c3\u0302): 34.15
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 145.24
+  Current inventory: 1
+  Cap value: 145.24
+  OR recommends (capped): 145
+  OR recommends (uncapped): 145
+======================================================================
+
+
+Period 24 (Period_24) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201323) confirms actual lead time = 0 (arrivals occur same period as ordered). Therefore orders placed now will arrive during this same period's arrival resolution and will be visible in the conclude message for next period. Inventory & demand analysis: On-hand = 1, in-transit = 0. Recent realized demands (Periods 18\u201323 = 36, 25, 58, 59, 57, 72) have a mean \u2248 51.17 and sample std \u2248 17.3. This recent mean is well below the OR's recommendation which implicitly uses older high-demand periods. Service-level calculus: profit = $19, holding = $1 \u2192 critical fractile q = 19/20 = 0.95, z* \u2248 1.645. Using recent demand stats and L=0 gives a base-stock \u2248 \u03bc + z*\u03c3 \u2248 51.17 + 1.645\xd717.28 \u2248 79.6. Pipeline (on-hand+in-transit) = 1, so order_raw \u2248 78.6 \u2192 round to 78 units. Cap check: with L=0 the OR cap equals the same calculation (~79.6), so the capped OR value (145) is inconsistent with the recent low-demand regime and likely driven by older samples. Strategy: Order 78 units to bring inventory to a target base-stock near 80 units, which balances high profit per unit and modest holding cost while matching the confirmed lower-demand regime. This reduces overstock risk from following OR's 145 recommendation (which would create excessive holding cost given current demand). Explicitly: OR recommended 145 (too high given recent mean\u224851); I order 78 = round(base_stock \u2212 pipeline). I follow evidence (lead time 0 and recent demand/stdev) rather than OR's long-history-heavy recommendation.",
+  "short_rationale_for_human": "Reduce OR's 145\u219278: actual lead time = 0 and recent demand average \u224851 with std \u224817; using q=0.95 gives base-stock \u224880, so order 78 to reach that target and avoid excess holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 78
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 145})
+
+Period 24 (Period_24) Demand: {
+  "action": {
+    "chips(Regular)": 93
+  }
+}
+
+=== Period 24 Summary ===
+chips(Regular): ordered=78, arrived=78 units (ordered on Period 24, lead_time was 0 periods), starting on-hand inventory=79, demand=93, sold=79, ending on-hand inventory=0
+Daily Profit: $1501.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $1501.00
+
+======================================================================
+Period 25 (Period_25) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 89.21
+  Empirical std: 33.54
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 89.21
+  sigma_hat (\u03c3\u0302): 33.54
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 144.37
+  Current inventory: 0
+  Cap value: 144.37
+  OR recommends (capped): 145
+  OR recommends (uncapped): 145
+======================================================================
+
+
+Period 25 (Period_25) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history confirms actual lead time = 0 (multiple Period concludes show orders arriving same period). Therefore an order placed now will arrive during Period 25 and can satisfy Period 25 demand. Inventory & pipeline: on-hand = 0, in-transit = 0, so we have no coverage for current period demand. Demand analysis: historical demand series shows a clear downshift from the earlier high regime; recent realized demands (Periods 20\u201324: 58,59,57,72,93 with Period 24 truncated by stockout) indicate a current single-period demand roughly in the 60s rather than the larger peaks seen earlier. OR recommendation: OR suggests 145 units (uses long-run history and promised L). OR assumes higher mean and applies a high service-level safety stock (critical fractile q=19/(19+1)=0.95 \u2192 z*\u22481.645). Adjustment rationale: With lead time = 0 we only need to cover a single-period demand plus safety stock. Given recent lower-demand regime (carry-over insights record this shift previously) and on-hand = 0, I want to avoid large overstock that would incur holding costs while still avoiding costly stockouts (profit per unit is high). Estimation: use a conservative current single-period mean \u224860 and a plausible std \u224820 (consistent with observed variability). Base_stock \u2248 60 + 1.645\xd720 \u2248 94.9 \u2248 95. Since pipeline is zero, order_raw \u224895. Cap from OR (which smooths swings) would likely allow this smaller order. Final decision: order 95 units (arriving same period) \u2014 this reduces OR's 145 to 95 reflecting the sustained lower demand regime and current zero inventory, while still keeping a high service level appropriate for the high profit per unit. Risk posture: This reduces holding cost exposure versus OR's larger order while maintaining good protection against stockouts given high profit. Monitoring: If next concluded periods show demand trending back up (sustained for 3+ periods), increase orders accordingly.",
+  "short_rationale_for_human": "Reduced OR's 145\u219295 units because lead time = 0 and recent demand has settled in the ~60s; 95 covers one-period mean (~60) plus a 1.645\u03c3 safety buffer (~20\u03c3), balancing stockout risk (high profit) against holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 95
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 145})
+
+Period 25 (Period_25) Demand: {
+  "action": {
+    "chips(Regular)": 27
+  }
+}
+
+=== Period 25 Summary ===
+chips(Regular): ordered=95, arrived=95 units (ordered on Period 25, lead_time was 0 periods), starting on-hand inventory=95, demand=27, sold=27, ending on-hand inventory=68
+Daily Profit: $513.00, Daily Holding Cost: $68.00
+Daily Reward (R_t): $445.00
+
+======================================================================
+Period 26 (Period_26) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 87.13
+  Empirical std: 34.86
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 87.13
+  sigma_hat (\u03c3\u0302): 34.86
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 144.47
+  Current inventory: 68
+  Cap value: 144.47
+  OR recommends (capped): 77
+  OR recommends (uncapped): 77
+======================================================================
+
+
+Period 26 (Period_26) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history confirms actual lead time = 0 (multiple period messages show orders arriving same period). Pipeline/inventory: On-hand = 68, In-transit = 0. Demand outlook: Recent 5-period demand (P21\u2013P25) = [59,57,72,93,27], mean \u224861.6; recent regime-level evidence (Periods 16\u201325) shows a lower-demand regime versus earlier highs. OR recommendation = 77 units (uses longer historical average and promised lead time). Given lead time = 0, any order placed now would arrive in this same period and be available for demand, but on-hand 68 already exceeds the short-term forecasted demand (~62). Profit per unit ($19) is large relative to holding cost ($1), which biases toward carrying safety stock, but ordering additional units when current on-hand already exceeds expected demand risks unnecessary holding cost without clear evidence of an imminent demand spike. There is no in-transit stock and no lost-shipment signal. Therefore I will override the OR recommendation and place no order this period to avoid unnecessary holding costs while still meeting expected demand from on-hand inventory. If demand surprises upward next period, we can order then (lead time=0 gives same-period replenishment).",
+  "short_rationale_for_human": "Reduced OR's 77 \u2192 0 units: on-hand 68 exceeds recent forecasted demand \u224862 and lead time=0, so no immediate order to avoid extra holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 0
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 77})
+
+Period 26 (Period_26) Demand: {
+  "action": {
+    "chips(Regular)": 35
+  }
+}
+
+=== Period 26 Summary ===
+chips(Regular): ordered=0, arrived=0, starting on-hand inventory=68, demand=35, sold=35, ending on-hand inventory=33
+Daily Profit: $665.00, Daily Holding Cost: $33.00
+Daily Reward (R_t): $632.00
+
+======================================================================
+Period 27 (Period_27) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 85.45
+  Empirical std: 35.53
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 85.45
+  sigma_hat (\u03c3\u0302): 35.53
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 143.89
+  Current inventory: 33
+  Cap value: 143.89
+  OR recommends (capped): 111
+  OR recommends (uncapped): 111
+======================================================================
+
+
+Period 27 (Period_27) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Summary of facts and inference:\n- Lead time: Concluded history shows orders arriving same period (Period 1\u21921, 2\u21922, ..., 25\u219225). Promised lead time 0 appears correct and previously recorded as confirmed (Period 5 carry-over). Therefore an order placed now will arrive during Period 27 and can satisfy Period 27 demand.\n- Inventory state: On-hand = 33, In-transit = 0 (so pipeline inventory available this period is only the on-hand 33 plus any order we place now because LT=0).\n- Recent demand pattern: Latest five realized demands (Periods 22\u201326) = 57, 72, 93, 27, 35; mean \u2248 56.8 and visibly volatile (one spike to 93, one drop to 27). Earlier periods include higher regimes but carry-over already documents prior regime shifts; current short-term mean is \u224857 units/period.\n- OR recommendation: 111 units (OR uses promised LT and historical data; it targets a high critical fractile because profit >> holding cost). OR's cap/stock policy aims to protect against stockout but tends to order large quantities; it does not weight recent drop in average nor inventory on-hand.\nDecision logic and quantities:\n- Because LT=0, we can meet Period 27 demand directly with this period's order. We should order to cover expected demand for this period plus a small safety buffer, not the much larger OR suggestion which would create excessive ending inventory and holding cost that reduces reward.\n- Target demand coverage: use recent 5-period mean \u224856.8; round to a conservative target of 60 units to allow modest buffer against volatility. That gives target on-hand after arrival = current on-hand (33) + order (X) = ~60 target => X \u2248 27.\n- Practical rounding and risk tolerance: Order in whole units and provide a little extra buffer for variability; I increase to 27\u2192 order 27 to bring available inventory to 60. This reduces risk of both stockout and excessive ending inventory.\n- Comparison to OR: I reduce OR's 111 to 27 (net order) because OR does not account for the recent downward shift in realized mean and we already hold 33 units on-hand. Ordering 111 would push ending inventory very high and incur unnecessary holding cost given uncertain demand.\nExpected outcome:\n- After arrival (LT=0), starting inventory for demand will be 33+27=60. With expected demand \u224857, we expect to sell ~57 and finish period with small ending inventory (~3), minimizing holding cost while capturing most profit from sales.\nCarry-over decision:\n- No new sustained pattern meets the 3+ period conservative threshold beyond existing entries; do not add a new carry-over insight.\n",
+  "short_rationale_for_human": "Reduced OR's recommendation from 111 to ordering 27 units (LT=0) because recent 5-period mean demand \u224857 and you already have 33 on-hand; ordering 27 brings available inventory to ~60, covering expected demand with a small buffer and avoiding large holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 27
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 111})
+
+Period 27 (Period_27) Demand: {
+  "action": {
+    "chips(Regular)": 63
+  }
+}
+
+=== Period 27 Summary ===
+chips(Regular): ordered=27, arrived=27 units (ordered on Period 27, lead_time was 0 periods), starting on-hand inventory=60, demand=63, sold=60, ending on-hand inventory=0
+Daily Profit: $1140.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $1140.00
+
+======================================================================
+Period 28 (Period_28) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 84.75
+  Empirical std: 35.17
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 84.75
+  sigma_hat (\u03c3\u0302): 35.17
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 142.61
+  Current inventory: 0
+  Cap value: 142.61
+  OR recommends (capped): 143
+  OR recommends (uncapped): 143
+======================================================================
+
+
+Period 28 (Period_28) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & inventory: Concluded history repeatedly shows orders arriving same period (lead_time = 0 confirmed). Current on-hand = 0, in-transit = 0, so any order we place will arrive during Period 28 and be available for Period 28 demand. Step 2 \u2014 Demand outlook: OR recommends 143 based on older/full history. Recent realized demand has fallen from earlier highs and become more volatile. I focus on the most recent 5 periods (Periods 23\u201327 demands: 72, 93, 27, 35, 63) which give a recent mean \u224858 units and sample std \u224827.1. This recent window better reflects the lower/volatile regime seen since Period 23. Step 3 \u2014 OR method applied to recent data: With lead_time=0, \u03bc\u0302 = 58 and \u03c3\u0302 \u224827.1. Critical fractile q = profit/(profit+holding) = 19/20 = 0.95 \u2192 z* \u2248 1.645. Base-stock = \u03bc\u0302 + z*\u03c3\u0302 \u2248 58 + 1.645\xd727.1 \u2248 103 units. With no pipeline the uncapped order \u2248103; the OR cap (using 95th percentile) yields essentially the same for L=0. Step 4 \u2014 Business trade-offs: Profit per unit is high relative to holding cost, so it is reasonable to hold some safety stock to avoid costly stockouts. However, the most recent data show several low-demand periods (27, 35) so I avoid matching OR's older-historical 143 which would create unnecessary holding cost. Step 5 \u2014 Final action: Order 103 units (rounding base-stock to nearest whole unit). This should cover expected demand for Period 28 with conservative safety stock given confirmed 0 lead time and recent demand regime.",
+  "short_rationale_for_human": "Confirmed lead time 0 and recent mean demand \u224858 with std \u224827 \u2192 base-stock \u224858+1.645\xd727\u2248103. Order 103 (down from OR's 143) to reflect the recent lower, volatile demand while keeping safety stock to avoid stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 103
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 143})
+
+Period 28 (Period_28) Demand: {
+  "action": {
+    "chips(Regular)": 41
+  }
+}
+
+=== Period 28 Summary ===
+chips(Regular): ordered=103, arrived=103 units (ordered on Period 28, lead_time was 0 periods), starting on-hand inventory=103, demand=41, sold=41, ending on-hand inventory=62
+Daily Profit: $779.00, Daily Holding Cost: $62.00
+Daily Reward (R_t): $717.00
+
+======================================================================
+Period 29 (Period_29) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 83.42
+  Empirical std: 35.45
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 83.42
+  sigma_hat (\u03c3\u0302): 35.45
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 141.73
+  Current inventory: 62
+  Cap value: 141.73
+  OR recommends (capped): 80
+  OR recommends (uncapped): 80
+======================================================================
+
+
+Period 29 (Period_29) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time & arrivals: Concluded history shows lead time = 0 (orders arrive same period) and there are no in-transit units. Therefore any order placed now will arrive during this period's arrival resolution and can immediately meet demand. Inventory position: on-hand = 62, in-transit = 0. Recent demand signal: the last five realized demands (Periods 24\u201328) are {93, 27, 35, 63, 41} with mean \u2248 51.8 and high variability (spikes to 93 and 63). OR recommendation: 80 units (uses historical data and promised L=0; critical fractile is very high because profit $19 vs holding $1 \u2192 q=19/20=0.95, z*\u22481.645, which produces substantial safety stock). Decision logic: because lead time = 0, we can react to current on-hand immediately. We already have 62 units on hand\u2014more than the recent average demand (~52) but less than recent spikes (63 and 93). Ordering the full OR suggestion (80) would raise on-hand to 142, risking large holding cost (holding=$1/unit/period) relative to likely incremental sales. Ordering nothing risks stockouts on spike periods similar to P24 (demand 93). Compromise: place a modest replenishment to protect against moderate spikes while limiting holding cost. Ordering 30 units gives immediate available inventory = 62 + 30 = 92, which covers last-period peak (93 is one unit higher) and is close to OR's level but avoids doubling inventory. Expected outcome: with expected demand \u224852, ending inventory \u224840 (holding cost \u2248$40 next period) while retaining coverage for higher-than-average demand. Action: order 30 units now. Explanation vs OR: I reduced OR's 80 \u2192 30 because OR uses long-run higher mean and its high critical fractile; given confirmed L=0, current on-hand, and a recent lower mean with a few spikes, a smaller top-up is more profit-preserving while keeping reasonable service for spikes. ",
+  "short_rationale_for_human": "Reduced OR's 80\u219230: lead time is confirmed 0 and on-hand=62 covers average demand (~52); a 30-unit top-up (available immediately) protects against moderate spikes while avoiding large holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 30
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 80})
+
+Period 29 (Period_29) Demand: {
+  "action": {
+    "chips(Regular)": 67
+  }
+}
+
+=== Period 29 Summary ===
+chips(Regular): ordered=30, arrived=30 units (ordered on Period 29, lead_time was 0 periods), starting on-hand inventory=92, demand=67, sold=67, ending on-hand inventory=25
+Daily Profit: $1273.00, Daily Holding Cost: $25.00
+Daily Reward (R_t): $1248.00
+
+======================================================================
+Period 30 (Period_30) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 82.94
+  Empirical std: 35.02
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 82.94
+  sigma_hat (\u03c3\u0302): 35.02
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 140.54
+  Current inventory: 25
+  Cap value: 140.54
+  OR recommends (capped): 116
+  OR recommends (uncapped): 116
+======================================================================
+
+
+Period 30 (Period_30) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows lead time = 0 (orders from P1\u2013P29 all arrived same period), so any order placed now will arrive before demand in this period. Inventory & demand analysis: On-hand = 25, in-transit = 0. Recent realized demands (Periods 25\u201329) = [27, 35, 63, 41, 67], mean \u2248 46.6, sample sd \u2248 17.6. Given product economics (profit $19, holding $1) the critical fractile q = 19/(19+1) = 0.95 \u2192 z* \u2248 1.645. Applying a simple single-period base-stock: base_stock \u2248 mean + z*\xb7sd \u2248 46.6 + 1.645\xb717.6 \u2248 75.5. Order needed = base_stock \u2212 (on-hand + pipeline) \u2248 75.5 \u2212 25 = 50.5 \u2192 round to 50 units. Comparison to OR: OR recommended 116 units (uses longer history including earlier high-demand regime). I reduce that because (a) several multi-period regime shifts have been recorded in carry-over insights and the demand has not returned to the earlier high regime, and (b) current recent five-period mean (\u224846.6) and moderate variance support a lower single-period target. Risk tradeoffs: With q=0.95 we still carry safety stock (~29 units) above mean to avoid stockouts; ordering 50 leaves on-hand \u224875 when arrival occurs, matching our target. Holding cost is low ($1) relative to profit ($19), so I accept modest holding to preserve service. Final strategy: place order = 50 so stock after arrival \u2248 75 to satisfy expected demand this period with a high service level, while avoiding the large surplus implied by OR's 116 which appears driven by older high-demand regime.",
+  "short_rationale_for_human": "Ordering 50 (vs OR 116): lead time is 0 so order is available now; recent 5-period mean demand \u224846.6 with sd\u224817.6 and q=0.95 implies base stock \u224876, so order 50 to bring on-hand to \u224875 rather than following OR's higher recommendation tied to older high-demand regime.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 50
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 116})
+
+Period 30 (Period_30) Demand: {
+  "action": {
+    "chips(Regular)": 61
+  }
+}
+
+=== Period 30 Summary ===
+chips(Regular): ordered=50, arrived=50 units (ordered on Period 30, lead_time was 0 periods), starting on-hand inventory=75, demand=61, sold=61, ending on-hand inventory=14
+Daily Profit: $1159.00, Daily Holding Cost: $14.00
+Daily Reward (R_t): $1145.00
+
+======================================================================
+Period 31 (Period_31) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 82.31
+  Empirical std: 34.70
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 82.31
+  sigma_hat (\u03c3\u0302): 34.70
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 139.39
+  Current inventory: 14
+  Cap value: 139.39
+  OR recommends (capped): 126
+  OR recommends (uncapped): 126
+======================================================================
+
+
+Period 31 (Period_31) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201330) repeatedly shows orders arriving same period they were placed (many entries like 'arrived ... (lead_time was 0 periods)'); carry-over already recorded lead time = 0 at Period 5. So I treat lead time as 0 (orders arrive within the same period they are placed), meaning an order placed now will be available for today's demand.\n\nInventory & demand analysis: On-hand = 14, in-transit = 0. Recent realized demands (Periods 26\u201330) = [35, 63, 41, 67, 61]; recent mean = 53.4, sample std \u2248 14.4. Historical carry-over insights already document multiple regime shifts; most recently demand has been at a lower level (the carry-over insight records declines to ~46.3 earlier), and the last 5 periods show a modest recovery to mid-50s but not a sustained surge.\n\nOR recommendation: OR baseline suggests ordering 126 units. That would build a large inventory and, while profit per unit ($19) is high, holding cost is nonzero ($1/unit/period) and with lead time = 0 we can respond each period. Given the clear evidence of lower-demand regimes in recent history and moderate volatility (sd \u224814.4), blindly following 126 risks excessive ending inventory and holding cost without commensurate sales.\n\nTarget stocking logic: Using a critical fractile (q = profit/(profit+holding) = 19/(19+1) = 0.95, z*\u22481.645) applied to the recent demand distribution gives a safety buffer: target = \u03bc + z*\xb7\u03c3 \u2248 53.4 + 1.645\xb714.4 \u2248 77.1 units needed available for the period to hit the high service level OR's fractile implies. With on-hand = 14 and no pipeline, order = target \u2212 on-hand \u2248 77.1 \u2212 14 \u2248 63 units (rounded to integer). This keeps a conservative high service level consistent with the profit/holding trade-off but avoids OR's much larger 126 suggestion which appears to assume a higher mean from older data.\n\nFinal strategy: Order 63 units this period so arrivals (lead time 0) plus on-hand provide \u224877 units available to meet demand today and capture upside in case demand is at the higher end of recent variation, while limiting unnecessary holding cost going forward. Because lead time = 0, we can adjust orders next period based on actual demand observed this period.\n\nRisk notes: If demand unexpectedly rises toward earlier high-regime levels (100+), this policy may cause some stockouts; however, recent 5-period evidence does not support that regime returning immediately. We will re-evaluate each period (lead time 0 allows agile corrections).",
+  "short_rationale_for_human": "Reduced OR's 126 \u2192 63. Lead time is confirmed 0, recent demand average \u224853.4 (sd\u224814.4); using q=0.95 (z\u22481.645) yields target \u224877 units; with 14 on-hand I order 63 to meet that target while avoiding large excess inventory.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 63
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 126})
+
+Period 31 (Period_31) Demand: {
+  "action": {
+    "chips(Regular)": 57
+  }
+}
+
+=== Period 31 Summary ===
+chips(Regular): ordered=63, arrived=63 units (ordered on Period 31, lead_time was 0 periods), starting on-hand inventory=77, demand=57, sold=57, ending on-hand inventory=20
+Daily Profit: $1083.00, Daily Holding Cost: $20.00
+Daily Reward (R_t): $1063.00
+
+======================================================================
+Period 32 (Period_32) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 81.61
+  Empirical std: 34.46
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 81.61
+  sigma_hat (\u03c3\u0302): 34.46
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 138.29
+  Current inventory: 20
+  Cap value: 138.29
+  OR recommends (capped): 119
+  OR recommends (uncapped): 119
+======================================================================
+
+
+Period 32 (Period_32) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Summary of situation and inference: Promised lead time = 0 and previous concluded messages (Periods 1\u201331) consistently show arrivals in the same period they were ordered, so actual lead time = 0 (already recorded in carry-over). Current on-hand = 20, in-transit = 0. OR recommends 119 using its capped base-stock logic and historical demand; it uses a high critical fractile (q = 19/(19+1) = 0.95) so it biases toward high safety stock.\n\nDemand analysis: Recent realized single-period demands (Periods 27\u201331) = [63, 41, 67, 61, 57], mean \u2248 57.8 and visibly lower than the earlier high-regime levels. Carry-over history documents prior regime shifts; the most recent sustained low-demand regime (Periods ~16\u201321 and afterward) supports a lower forecast than OR's long-run baseline. Variability in the last five periods is moderate (std \u2248 9.8), so a modest safety buffer is appropriate.\n\nInventory & timing: With lead time = 0, orders placed now arrive within the same selling period and will directly satisfy Period 32 demand. That means we can top up to meet expected Period 32 demand without needing multi-period pipeline coverage. Because in-transit = 0 and on-hand = 20, we should order to reach a targeted available stock to cover expected demand plus safety stock, but avoid excessive ending inventory which creates holding-cost drag over remaining horizon.\n\nDecision logic vs OR: OR's 119 units is high relative to recent mean demand (~58) and would result in a large expected ending inventory this period (raising holding cost $1/unit). Given the short horizon remaining (we are at Period 32 of 50) and demonstrated lower demand regime, I reduce OR's recommendation. Target available inventory = expected demand (\u224858) + safety buffer (~25% of mean \u224814) = ~72. With on-hand 20, that implies ordering ~52. I round up slightly to give a bit more cushion against variability and to simplify integers: final order = 80 units? (Re-evaluate) -- Correction: compute precisely: target 72 => order = 72 - 20 = 52. To provide slightly stronger service because profit >> holding cost and to smooth ordering, I choose order = 80 units which yields available stock 100 (20+80). This covers about 1.7\xd7 expected demand and provides strong protection against undershoot while still limiting extreme overstock relative to OR's 119.\n\nExpected outcome: With order=80 arriving this period, we should meet Period 32 demand (~58 expected) comfortably and finish with ~42 units on-hand, incurring holding cost of 42 but avoiding lost sales that are expensive ($19 profit per unit sold). This balances service and holding costs conservatively given current lower demand regime and zero lead-time.\n\nCarry-over insight decision: No new sustained regime or lead-time insight to add (lead time and demand regime changes are already recorded).",
+  "short_rationale_for_human": "I reduced OR's 119 to 80 units because recent demand (~58/day) is well below OR's long-run baseline; with lead time = 0 and 20 on-hand, ordering 80 provides ample coverage this period (available = 100) while avoiding the large ending inventory OR would create.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 80
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 119})
+
+Period 32 (Period_32) Demand: {
+  "action": {
+    "chips(Regular)": 70
+  }
+}
+
+=== Period 32 Summary ===
+chips(Regular): ordered=80, arrived=80 units (ordered on Period 32, lead_time was 0 periods), starting on-hand inventory=100, demand=70, sold=70, ending on-hand inventory=30
+Daily Profit: $1330.00, Daily Holding Cost: $30.00
+Daily Reward (R_t): $1300.00
+
+======================================================================
+Period 33 (Period_33) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 81.30
+  Empirical std: 34.03
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 81.30
+  sigma_hat (\u03c3\u0302): 34.03
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 137.27
+  Current inventory: 30
+  Cap value: 137.27
+  OR recommends (capped): 108
+  OR recommends (uncapped): 108
+======================================================================
+
+
+Period 33 (Period_33) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history through Period 32 shows every order arriving in the same period it was placed (e.g., Period 1\u2192P1, P2\u2192P2, ... P32\u2192P32). This confirms actual lead time = 0 periods, so any order placed now will arrive during this period's arrival resolution and will be available to satisfy current-period demand.\n\nInventory & demand analysis: Current on-hand = 30, in-transit = 0. Recent realized demand (Periods 28\u201332) = [41, 67, 61, 57, 70], average \u2248 59.2 units/period. The longer-run history shows regime shifts earlier, but the most recent five periods indicate a stable ~60 units demand. Profit = $19, holding = $1 \u2192 critical fractile q = 19/20 = 0.95, z* \u2248 1.645 (OR used same). OR recommended 108 units (their final capped order). With lead time 0, the base-stock target implied by OR is approximately 108 units on-hand (their base_stock). To reach that target from current pipeline (on-hand + in-transit = 30) you would order 108 \u2212 30 = 78 units.\n\nOR comparison and adaptation: OR recommendation (108) appears to be the base-stock target, not the net order quantity. Given we already hold 30 units on-hand and there are no in-transit units, ordering 78 brings our on-hand effectively to the OR base-stock level while avoiding over-ordering. Ordering the full 108 would create excess inventory (ending on-hand \u2248 138) and raise holding cost unnecessarily given recent realized demand \u224860. Because lead time = 0, extra safety stock beyond OR's base-stock is unnecessary now. There is no strong, sustained new signal (carry-over rules require 3+ periods of consistent change) to deviate further.\n\nFinal strategy: Place an order of 78 units so arrival in this period raises available inventory to ~108 (30+78), matching OR's base-stock target that balances high profit vs low holding cost. This covers expected demand (~60) with safety stock implied by q=0.95 while avoiding excessive holding cost from ordering OR's raw recommendation as if pipeline were empty.\n",
+  "short_rationale_for_human": "Ordering 78 units (30 on-hand + 78 \u2192 108) to match OR's base-stock target given confirmed lead time 0 and recent demand \u224860; avoids over-ordering while keeping the high safety stock implied by profit/holding ratio.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 78
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 108})
+
+Period 33 (Period_33) Demand: {
+  "action": {
+    "chips(Regular)": 56
+  }
+}
+
+=== Period 33 Summary ===
+chips(Regular): ordered=78, arrived=78 units (ordered on Period 33, lead_time was 0 periods), starting on-hand inventory=108, demand=56, sold=56, ending on-hand inventory=52
+Daily Profit: $1064.00, Daily Holding Cost: $52.00
+Daily Reward (R_t): $1012.00
+
+======================================================================
+Period 34 (Period_34) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 80.63
+  Empirical std: 33.82
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 80.63
+  sigma_hat (\u03c3\u0302): 33.82
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 136.26
+  Current inventory: 52
+  Cap value: 136.26
+  OR recommends (capped): 85
+  OR recommends (uncapped): 85
+======================================================================
+
+
+Period 34 (Period_34) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows lead time = 0 (orders consistently arrived same period). On-hand = 52, in-transit = 0, so any order placed now will arrive during this period before demand.\n\nDemand assessment: Recent realized demand (Periods 29\u201333 = 67,61,57,70,56) averages 62.2 with sample std \u2248 6.14. The long-run history contains higher regimes earlier, but carry-over insights already record sustained regime shifts downwards; most recent five periods show a stable lower-demand pattern around 60\u201370 units.\n\nOR recommendation: OR suggests ordering 85 units. OR uses all historical data (including earlier high-demand periods) and the promised lead time; that causes it to target a higher base-stock than recent demand supports.\n\nMy policy calculation (consistent with OR math but using recent stats and confirmed L=0): with mean \u03bc\u224862.2 and \u03c3\u22486.14, critical fractile q = profit/(profit+holding) = 19/(19+1)=0.95 \u21d2 z*\u22481.645. Base-stock \u2248 \u03bc + z*\u03c3 \u2248 62.2 + 1.645\xd76.14 \u2248 72.3 units. With on-hand 52 and no pipeline, needed order \u2248 72.3 \u2212 52 \u2248 20 units. This brings available inventory to \u224872 units (arrives this period) to cover expected demand (~62) plus a safety buffer, keeping expected ending inventory low (~10) to limit holding cost.\n\nRisk/robustness: I favor recent demand sample over older high-demand periods because carry-over insights indicate sustained drops and the last 5 periods are consistent. Lead time = 0 reduces need for larger in-transit buffer. Ordering 20 balances high profit per unit (so stockouts are costly) and modest holding cost; it avoids the much larger OR order which would create excessive holding cost on slow demand.\n\nFinal action: order 20 units for chips(Regular).",
+  "short_rationale_for_human": "Ordered 20 units (vs OR's 85): recent 5-period average demand \u224862 with \u03c3\u22486.1 and confirmed lead time 0 implies base-stock \u224872; with 52 on-hand we only need ~20 to reach that safe level and avoid excess holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 20
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 85})
+
+Period 34 (Period_34) Demand: {
+  "action": {
+    "chips(Regular)": 45
+  }
+}
+
+=== Period 34 Summary ===
+chips(Regular): ordered=20, arrived=20 units (ordered on Period 34, lead_time was 0 periods), starting on-hand inventory=72, demand=45, sold=45, ending on-hand inventory=27
+Daily Profit: $855.00, Daily Holding Cost: $27.00
+Daily Reward (R_t): $828.00
+
+======================================================================
+Period 35 (Period_35) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 79.72
+  Empirical std: 33.85
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 79.72
+  sigma_hat (\u03c3\u0302): 33.85
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 135.40
+  Current inventory: 27
+  Cap value: 135.40
+  OR recommends (capped): 109
+  OR recommends (uncapped): 109
+======================================================================
+
+
+Period 35 (Period_35) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows every order arrived same period (P1\u2192P1 ... P34\u2192P34). Promised lead time 0 is confirmed in carry-over, so orders placed now will arrive during this period and be available to meet Period 35 demand.\n\nInventory & demand analysis: On-hand = 27, in-transit = 0. Recent realized demands (Periods 30\u201334) = [61, 57, 70, 56, 45]. Recent 5-period mean = 57.8, sample std \u2248 9.0. Longer-run carry-over insights indicate several earlier regime shifts, but the most recent five periods show demand near ~58/day rather than the higher OR-average.\n\nOR recommendation comparison: OR recommends 109 units (uses all historical data and promised L). Given actual lead time = 0 and recent lower mean demand, OR's recommendation is too high and would cause excessive holding cost.\n\nTargeting base-stock: Using a service-oriented fractile (profit $19, holding $1 \u2192 q = 19/20 = 0.95 \u2192 z*\u22481.645) and focusing on recent demand statistics: base_stock \u2248 \u03bc + z*\xb7\u03c3 \u2248 57.8 + 1.645\xb79.0 \u2248 72.7 \u2248 73 units. To reach that target from current on-hand 27 (in-transit 0), order \u2248 73 \u2212 27 = 46 units.\n\nAdjustment rationale: I reduce OR's 109 \u2192 46 because (1) actual lead time is 0 so we can replenish immediately and do not need extra pipeline buffer; (2) recent demand average (~58) and moderate variability (\u03c3~9) imply a reasonable base-stock ~73, not 109; (3) holding cost is small but nonzero, so avoid unnecessary overstock that reduces objective (Profit\xd7sold \u2212 HoldingCost\xd7ending_inventory). Ordering 46 units brings on-hand to ~73 to satisfy typical next-period demand with 95% service using recent volatility.\n\nOperational note: If demand shows sustained upward shift (3+ periods) above current recent mean, increase orders toward OR levels; if demand falls for 3+ periods, reduce further. No new multi-period regime signal is recorded now.",
+  "short_rationale_for_human": "Reduced OR's 109\u219246: actual lead time = 0 and recent demand (Periods 30\u201334 mean \u224858, \u03c3\u22489) implies a base-stock \u224873; with 27 on-hand, ordering 46 brings stock to ~73 and avoids excessive holding costs.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 46
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 109})
+
+Period 35 (Period_35) Demand: {
+  "action": {
+    "chips(Regular)": 52
+  }
+}
+
+=== Period 35 Summary ===
+chips(Regular): ordered=46, arrived=46 units (ordered on Period 35, lead_time was 0 periods), starting on-hand inventory=73, demand=52, sold=52, ending on-hand inventory=21
+Daily Profit: $988.00, Daily Holding Cost: $21.00
+Daily Reward (R_t): $967.00
+
+======================================================================
+Period 36 (Period_36) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 79.03
+  Empirical std: 33.70
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 79.03
+  sigma_hat (\u03c3\u0302): 33.70
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 134.46
+  Current inventory: 21
+  Cap value: 134.46
+  OR recommends (capped): 114
+  OR recommends (uncapped): 114
+======================================================================
+
+
+Period 36 (Period_36) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Concluded history consistently shows actual lead time = 0 (P1\u2192P1, P2\u2192P2, ... P35\u2192P35). Therefore an order placed now will arrive during this same period and can satisfy current-period demand. There are no in-transit units.\n\nStep 2 \u2014 Demand assessment: Recent realized demands show a clear low/steady regime. Last 10 periods (P26\u2013P35) demands = [35, 60, 41, 67, 61, 57, 70, 56, 45, 52], average \u2248 54.4 units per period. The most recent 5 periods (P31\u2013P35) average \u2248 56.0. Historical carry-over insights indicate earlier regime shifts, but the current regime appears to be a stable ~50\u201360 units/day range.\n\nStep 3 \u2014 OR recommendation comparison: OR recommends 114 units using its base-stock/cap logic and promised lead time. That recommendation is built to cover more variability and uses older samples (including the earlier high-demand regime). Given the confirmed lead time = 0 and the recent sustained lower mean (~54), OR's 114 is overly conservative and would create avoidable holding cost.\n\nStep 4 \u2014 Inventory math & decision rule: With L=0 we must cover (L+1)=1 period of demand at decision time. Current on-hand = 21, in-transit = 0. Expected single-period demand \u2248 54.4. Required order \u2248 max(0, expected_demand \u2212 on_hand) = 54.4 \u2212 21 \u2248 33.4 \u2192 round to 34 units. This provides ~1 period of expected coverage while avoiding excess holding cost. Ordering 34 units leverages same-period arrival to meet demand and keeps ending inventory modest.\n\nStep 5 \u2014 Risk considerations: Profit is high ($19) relative to holding ($1), which normally pushes toward higher safety stock. However, because lead time = 0 and past several periods show stable demand at ~54 units, maintaining only one period coverage is reasonable. If we begin to see several periods of consecutive stockouts or a clear uptick in demand, we will record a carry-over insight and increase orders.\n\nFinal action: order 34 units (chips(Regular)).",
+  "short_rationale_for_human": "Reduced OR's 114 \u2192 34 units because actual lead time = 0 (same-period arrival) and recent demand averages \u224854 units; with 21 on-hand, ordering 34 covers one expected period while avoiding excess holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 34
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 114})
+
+Period 36 (Period_36) Demand: {
+  "action": {
+    "chips(Regular)": 108
+  }
+}
+
+=== Period 36 Summary ===
+chips(Regular): ordered=34, arrived=34 units (ordered on Period 36, lead_time was 0 periods), starting on-hand inventory=55, demand=108, sold=55, ending on-hand inventory=0
+Daily Profit: $1045.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $1045.00
+
+======================================================================
+Period 37 (Period_37) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 79.73
+  Empirical std: 33.59
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 79.73
+  sigma_hat (\u03c3\u0302): 33.59
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 134.98
+  Current inventory: 0
+  Cap value: 134.98
+  OR recommends (capped): 135
+  OR recommends (uncapped): 135
+======================================================================
+
+
+Period 37 (Period_37) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history confirms actual lead time = 0 (orders have arrived same period consistently). Therefore an order placed now will arrive in this period before demand is realized. Inventory & pipeline: On-hand = 0, In-transit = 0, so all future sales must be supplied from any order placed this decision. Demand analysis: Recent single-period demands (Periods 31\u201336) = [57, 70, 56, 45, 52, 108], mean \u2248 64.7, sample std \u2248 22.8. The OR baseline used promised lead time and historical samples and recommended 135 units (capped policy). With actual L=0 we only need to cover one period of demand (L+1 = 1). Risk tradeoff: profit = $19, holding = $1 gives critical fractile q = 19/20 = 0.95 \u2192 z* \u2248 1.645. Using recent stats: safety stock \u2248 1.645 \xd7 22.8 \u2248 37.4 \u2192 base_stock \u2248 64.7 + 37.4 \u2248 102.1 units. OR's 135 is noticeably higher; it likely reflects longer review+lead (1+L) demand and older samples. Given holding cost is low relative to profit, being slightly conservative against stockouts is reasonable, but ordering the full 135 risks excess holding given the recent mean ~65 and only single-period exposure. There was one large spike (108 in Period 36) \u2014 I want to partly protect against a similar spike but not fully match OR's higher recommendation. Final decision: order 110 units. This covers the recent mean (\u224865) plus ~45 units of safety (slightly above the computed 37.4 safety) to provide buffer for occasional spikes while limiting carrying cost. Collaboration note vs OR: I scale OR's 135 down to 110 because actual lead time = 0 reduces the required coverage window to one period and recent demand mean is ~65; I kept extra safety above the textbook base stock to account for observed occasional spikes.",
+  "short_rationale_for_human": "Reduced OR's 135\u2192110 because confirmed lead time = 0 means we only need one period of coverage; recent single-period mean \u224865 with std \u224823 gives a base_stock \u2248102, so I ordered 110 to provide modest extra buffer for spikes while limiting holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 110
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 135})
+
+Period 37 (Period_37) Demand: {
+  "action": {
+    "chips(Regular)": 149
+  }
+}
+
+=== Period 37 Summary ===
+chips(Regular): ordered=110, arrived=110 units (ordered on Period 37, lead_time was 0 periods), starting on-hand inventory=110, demand=149, sold=110, ending on-hand inventory=0
+Daily Profit: $2090.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2090.00
+
+======================================================================
+Period 38 (Period_38) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 81.38
+  Empirical std: 34.85
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 81.38
+  sigma_hat (\u03c3\u0302): 34.85
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 138.71
+  Current inventory: 0
+  Cap value: 138.71
+  OR recommends (capped): 139
+  OR recommends (uncapped): 139
+======================================================================
+
+
+Period 38 (Period_38) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Carry-over and conclude history confirm actual lead time = 0 (orders placed arrive same period and are visible in the conclude message). Inventory state: on-hand = 0, in-transit = 0, so any units sold this period must come from an order placed now. Demand analysis: Recent concluded demands show variability with occasional large spikes (Period 36 demand 108, Period 37 demand 149) but several prior periods in the 40\u201370 range. Constrained sales (sold < demand) in Periods 36\u201337 show true demand can exceed what we stocked; recent unconstrained demand samples: looking across the last ~10\u201312 periods demand fluctuates, with some high outliers but no sustained new regime that is higher than earlier high-regime periods. OR recommendation: 139 units. OR uses promised lead time (0) and the historical sample set with a high critical fractile (profit $19, holding $1 \u2192 q\u22480.95 \u2192 z\u22481.645), which pushes base-stock upward to protect against stockouts. Decision: I will order 130 units (slightly below OR's 139). Rationale for adjustment: With lead time = 0 and no pipeline, we do need a sizable order to avoid immediate stockouts given recent spikes; however OR's 139 is driven by a high z* and pooled historical variance including outliers. Ordering 130 balances service (covers most high single-period demands based on recent data) while avoiding excessive ending inventory that would incur holding cost over remaining horizon. Strategy specifics: - Immediate order of 130 units to satisfy likely high single-period demand while limiting unnecessary overstock. - Continue to monitor concluded demands next periods; if we see sustained high-demand regime (\u22653 periods of consistently high unconstrained demand), raise future orders to match OR or above. - If demand drops for 3+ periods, reduce orders accordingly. This decision explicitly accounts for: confirmed lead time = 0, zero on-hand/pipeline, OR baseline, and the recent mixture of high spikes and moderate periods.",
+  "short_rationale_for_human": "Ordering 130 units (slightly below OR's 139): lead time = 0 and inventory is zero so we need substantial stock to avoid immediate stockouts, but I trimmed OR's high safety-driven recommendation to reduce holding risk given mixed recent demand (some spikes but not a sustained higher regime).",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 130
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 139})
+
+Period 38 (Period_38) Demand: {
+  "action": {
+    "chips(Regular)": 130
+  }
+}
+
+=== Period 38 Summary ===
+chips(Regular): ordered=130, arrived=130 units (ordered on Period 38, lead_time was 0 periods), starting on-hand inventory=130, demand=130, sold=130, ending on-hand inventory=0
+Daily Profit: $2470.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2470.00
+
+======================================================================
+Period 39 (Period_39) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 82.51
+  Empirical std: 35.23
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 82.51
+  sigma_hat (\u03c3\u0302): 35.23
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 140.45
+  Current inventory: 0
+  Cap value: 140.45
+  OR recommends (capped): 141
+  OR recommends (uncapped): 141
+======================================================================
+
+
+Period 39 (Period_39) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: concluded history shows every order arriving in the same period it was placed (many entries: 'ordered=..., arrived=... (lead_time was 0 periods)'); therefore actual lead time = 0 and orders placed now will arrive in-period and can satisfy current-period demand. Inventory & pipeline: on-hand = 0, in-transit = 0 so nothing will meet Period 39 demand unless we order now. Demand analysis: recent realized demand jumped sharply in Periods 36\u201338 (108, 149, 130; avg = 129). The immediate pre-spike window (Periods 33\u201335) averaged ~51, so this is a large, sustained uptick across three periods. OR recommendation: 141 units. OR uses long-history estimates and a cap; given profit = $19 and holding = $1 the critical fractile is 19/20 = 0.95, so OR's higher safety stocking is consistent with a high service target. Decision: follow OR recommendation and order 141 units. Rationale for following: (1) lead time = 0 means this order will arrive in time to serve high current demand; (2) recent three-period average demand ~129 implies we need ~130 units on-hand to avoid stockouts this period; (3) holding cost is low ($1/unit/period) relative to profit ($19) so a small positive buffer above the 3-period average is cost-effective to capture high-margin sales and avoid lost sales; (4) OR's 141 slightly exceeds the recent mean and provides needed safety against variability (149 observed recently). Therefore order = 141. Short-term risk: if the spike proves transitory next period we will hold some inventory and incur holding cost, but given high margin and zero lead time the tradeoff favors covering demand now. Strategy summary: accept OR quantity to cover the confirmed spike and avoid stockouts while monitoring next periods for persistence; if high demand continues, update carry-over insights to reflect a new regime; if it falls back, reduce orders accordingly.",
+  "short_rationale_for_human": "Followed OR's 141-unit recommendation because lead time is confirmed 0 and recent demand spiked to an average ~129 over Periods 36\u201338; with high profit ($19) and low holding cost ($1) a modest buffer above expected demand is justified to avoid stockouts.",
+  "carry_over_insight": "Demand regime shift starting Period 36: avg demand in Periods 36\u201338 = 129 (108,149,130) vs prior three-period avg ~51 (Periods 33\u201335: 56,45,52), increase \u2248+152%; treat as new high-demand regime until further evidence.",
+  "action": {
+    "chips(Regular)": 141
+  }
+}
+Carry-over insight: Demand regime shift starting Period 36: avg demand in Periods 36\u201338 = 129 (108,149,130) vs prior three-period avg ~51 (Periods 33\u201335: 56,45,52), increase \u2248+152%; treat as new high-demand regime until further evidence.
+======================================================================
+  (OR recommended: {'chips(Regular)': 141})
+
+Period 39 (Period_39) Demand: {
+  "action": {
+    "chips(Regular)": 172
+  }
+}
+
+=== Period 39 Summary ===
+chips(Regular): ordered=141, arrived=141 units (ordered on Period 39, lead_time was 0 periods), starting on-hand inventory=141, demand=172, sold=141, ending on-hand inventory=0
+Daily Profit: $2679.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2679.00
+
+======================================================================
+Period 40 (Period_40) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 84.55
+  Empirical std: 37.34
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 84.55
+  sigma_hat (\u03c3\u0302): 37.34
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 145.96
+  Current inventory: 0
+  Cap value: 145.96
+  OR recommends (capped): 146
+  OR recommends (uncapped): 146
+======================================================================
+
+
+Period 40 (Period_40) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows actual lead time = 0 (orders arrive same period) so any order placed now will arrive in Period 40 before demand is realized. Inventory position: on-hand=0, in-transit=0 so we have no coverage for Period 40 demand. Demand outlook: recent periods show a clear high-demand regime starting at Period 36 (carry-over insight already recorded). Periods 36\u201339 demands = [108,149,130,172], recent 4-period mean = 139.75 and sample std \u2248 27.27. OR recommended 146 units using longer history; OR's cap and base-stock logic are conservative relative to the most recent high regime. Policy math and service-level target: profit=19, holding=1 \u2192 critical fractile q=19/20=0.95 \u2192 z*\u22481.645. Using recent-demand stats with L=0: base_stock = \u03bc + z*\u03c3 \u2248 139.75 + 1.645\xd727.27 \u2248 184.6. Cap (OR's cap formula for L=0) evaluates similarly \u2248 184.6. Interpretation and risk tradeoff: profit per unit is large relative to holding cost, so stockouts are expensive; recent peak demand reached 172 and previous periods showed stockouts when we under-ordered (Period 39 sold 141 vs demand 172). Given confirmed zero lead time and the strong evidence of a new high-demand regime, I'll prioritize avoiding stockouts this period and order up toward the base-stock computed from recent data. Adjustment vs OR: OR's recommendation (146) is lower than the recent-regime base-stock (~185) and risks another stockout if demand repeats at the 150\u2013170 range. Final decision: order 185 units (rounding base_stock up) to cover expected demand + safety stock for the high-demand regime. This will likely result in some holding cost if demand softens, but given high profit margin and recent evidence of sustained higher demand, the tradeoff favors higher service. ",
+  "short_rationale_for_human": "Inferred lead time = 0 and recent demand (Periods 36\u201339 avg \u2248 140, sd \u2248 27) is in a high regime; with q=0.95 the base-stock \u2248185. I increase OR's 146 \u2192 185 to avoid costly stockouts seen at demand peaks (e.g., 172 in Period 39).",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 185
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 146})
+
+Period 40 (Period_40) Demand: {
+  "action": {
+    "chips(Regular)": 186
+  }
+}
+
+=== Period 40 Summary ===
+chips(Regular): ordered=185, arrived=185 units (ordered on Period 40, lead_time was 0 periods), starting on-hand inventory=185, demand=186, sold=185, ending on-hand inventory=0
+Daily Profit: $3515.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $3515.00
+
+======================================================================
+Period 41 (Period_41) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 86.80
+  Empirical std: 39.89
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 86.80
+  sigma_hat (\u03c3\u0302): 39.89
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 152.41
+  Current inventory: 0
+  Cap value: 152.41
+  OR recommends (capped): 153
+  OR recommends (uncapped): 153
+======================================================================
+
+
+Period 41 (Period_41) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201340) consistently shows arrivals occurring in the same period ordered (e.g., Period 1 order\u2192Period1 arrival; Periods 1\u201340 all lead_time=0). Therefore promised lead time 0 is correct and ordering in this Decision Phase will arrive in-time to satisfy current-period demand.\n\nInventory & demand analysis: On-hand = 0 and in-transit = 0, so we have no coverage for the current period aside from any order we place now. Recent demand has shifted to a higher regime (already captured in carry-over insight: Period 36+ high-demand regime). Recent realized demands for Periods 36\u201340 are: 108, 149, 130, 172, 186 (mean = 149). The last three periods (38\u201340) show particularly strong demand: 130, 172, 186 (mean = 162.7). OR recommendation is 153 units (based on historical stats and promised L=0). Given the recent spike (Period 40 demand=186) and the high critical-fractile implied by Profit=19 and Holding=1 (q=19/20=0.95 \u2192 z\u22481.645), the OR baseline at 153 is reasonable but slightly conservative relative to the most recent demand observations.\n\nDecision strategy: With profit far exceeding holding cost (marginal profit per extra unit sold = $19, holding = $1), the cost of being short is high relative to holding an extra unit. To avoid costly stockouts during the apparent high-demand regime and because lead time is 0 (order arrives this period), I will increase the order modestly above the OR recommendation to better cover recent high demand while limiting excess inventory. I choose 170 units: this sits between the OR 153 and recent short-run mean (last 3 periods ~163) and still below the single highest observed demand (186), balancing stockout risk and holding cost.\n\nComparison to OR: OR=153; I increase to 170 (+17 units, +11%) because: (1) confirmed lead time 0 means the order will protect current period demand, (2) recent 3-period mean ~163 and last-period demand=186 indicate upside risk, and (3) very high critical fractile (q\u22480.95) implies we should bias toward safety stock when pipeline is empty.\n\nRisk notes: If demand reverts downward, holding cost is low ($1/unit/period) relative to lost margin; however, we should monitor the next few periods for evidence of reversion and reduce orders if demand declines. No new carry-over insight is added now since the high-demand regime starting at Period 36 was already recorded.",
+  "short_rationale_for_human": "OR recommended 153 units; I order 170 because lead time=0 (order arrives this period), recent demand is elevated (Periods 38\u201340 avg \u2248163, last period 186), and profit >> holding cost, so a modest increase reduces expensive stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 170
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 153})
+
+Period 41 (Period_41) Demand: {
+  "action": {
+    "chips(Regular)": 137
+  }
+}
+
+=== Period 41 Summary ===
+chips(Regular): ordered=170, arrived=170 units (ordered on Period 41, lead_time was 0 periods), starting on-hand inventory=170, demand=137, sold=137, ending on-hand inventory=33
+Daily Profit: $2603.00, Daily Holding Cost: $33.00
+Daily Reward (R_t): $2570.00
+
+======================================================================
+Period 42 (Period_42) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 87.89
+  Empirical std: 40.13
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 87.89
+  sigma_hat (\u03c3\u0302): 40.13
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 153.90
+  Current inventory: 33
+  Cap value: 153.90
+  OR recommends (capped): 121
+  OR recommends (uncapped): 121
+======================================================================
+
+
+Period 42 (Period_42) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201341) repeatedly shows arrivals same period as order -> actual lead time = 0 (confirmed earlier in carry-over). Therefore any order placed in Period 42 will arrive during Period 42 and can satisfy Period 42 demand.\n\nDemand & inventory analysis: Recent demand has moved to a sustained high regime starting Period 36. Demands in Periods 36\u201341 = [108,149,130,172,186,137], mean = 147 units, sample std \u2248 28.5 units. On-hand = 33, in-transit = 0.\n\nOR recommendation: OR suggests 121 units based on its capped base-stock using historical data and promised lead time. That recommendation understates current demand because OR uses older history and its cap smooths swings; it does not fully reflect the high-demand regime (Periods 36\u201341 mean ~147).\n\nMy calculation and final strategy: With L=0, the OR-style critical fractile is q = profit/(profit+holding) = 19/(19+1) = 0.95 \u2192 z* \u2248 1.645. Base-stock = \u03bc + z*\u03c3 \u2248 147 + 1.645\xd728.5 \u2248 194 units. To have on-hand available for the current period (L+1 = 1 period), we want on-hand after arrival \u2248 base-stock. We already have 33 on-hand, so order_raw \u2248 194 \u2212 33 = 161 units. This order will arrive in Period 42 and together with 33 on-hand gives \u2248194 units to meet expected demand and safety stock.\n\nRisk/tradeoffs: Ordering 161 is larger than OR's 121 but appropriate given the confirmed high-demand regime; incremental holding cost is low ($1/unit/period) relative to profit ($19/unit), so erring slightly on the high side reduces lost-sales risk. If demand falls suddenly in coming periods, we will observe it in concludes and reduce future orders.\n\nSummary action: Order 161 units for chips(Regular) in Period 42 to cover expected high demand (mean \u2248147) plus safety stock.",
+  "short_rationale_for_human": "Increase OR's 121\u2192161 units because lead time = 0 and recent demand (Periods 36\u201341) averages ~147 with \u03c3\u224828.5; base-stock \u2248194, subtract on-hand 33 \u2192 order \u2248161 to avoid costly stockouts given high profit margin.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 161
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 121})
+
+Period 42 (Period_42) Demand: {
+  "action": {
+    "chips(Regular)": 125
+  }
+}
+
+=== Period 42 Summary ===
+chips(Regular): ordered=161, arrived=161 units (ordered on Period 42, lead_time was 0 periods), starting on-hand inventory=194, demand=125, sold=125, ending on-hand inventory=69
+Daily Profit: $2375.00, Daily Holding Cost: $69.00
+Daily Reward (R_t): $2306.00
+
+======================================================================
+Period 43 (Period_43) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 88.68
+  Empirical std: 40.06
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 88.68
+  sigma_hat (\u03c3\u0302): 40.06
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 154.57
+  Current inventory: 69
+  Cap value: 154.57
+  OR recommends (capped): 86
+  OR recommends (uncapped): 86
+======================================================================
+
+
+Period 43 (Period_43) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history confirms actual lead time = 0 (multiple concluded messages show orders arriving same period). Therefore any order placed now will arrive during Period 43 and can satisfy Period 43 demand. Inventory & demand analysis: On-hand = 69, in-transit = 0. Recent realized demand shows a clear high-demand regime starting Period 36: Periods 36\u201342 demands = [108,149,130,172,186,137,125], mean \u2248 144 units. OR recommends 86 units using its capped base-stock policy (which uses promised L and historical data). Required coverage for the current period = (L+1)-period demand = 1 period; to meet the recent mean demand (~144) we need about 144 \u2212 69 = 75 additional units. Risk trade-offs: profit per unit = $19, holding cost = $1 (q = 19/20 = 0.95 \u2192 z*\u22481.645), so the optimizer favors service (higher stock) over small holding costs. Ordering the OR recommendation (86) yields on-hand after arrival \u2248 155 which slightly exceeds recent mean demand and provides a small buffer for variability without creating excessive holding cost. Decision: follow OR recommendation of 86 units. This respects OR's statistical safety stock and slightly overshoots the immediate need (75) to reduce stockout risk in this elevated-demand regime. Final action will arrive same period and be available to meet Period 43 demand.",
+  "short_rationale_for_human": "Followed OR's recommendation of 86 units \u2014 with lead time = 0 the order will arrive this period; on-hand 69 + 86 \u2248155 covers recent high-demand mean (~144) and provides a small buffer against stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 86
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 86})
+
+Period 43 (Period_43) Demand: {
+  "action": {
+    "chips(Regular)": 132
+  }
+}
+
+=== Period 43 Summary ===
+chips(Regular): ordered=86, arrived=86 units (ordered on Period 43, lead_time was 0 periods), starting on-hand inventory=155, demand=132, sold=132, ending on-hand inventory=23
+Daily Profit: $2508.00, Daily Holding Cost: $23.00
+Daily Reward (R_t): $2485.00
+
+======================================================================
+Period 44 (Period_44) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 89.58
+  Empirical std: 40.12
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 89.58
+  sigma_hat (\u03c3\u0302): 40.12
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 155.58
+  Current inventory: 23
+  Cap value: 155.58
+  OR recommends (capped): 133
+  OR recommends (uncapped): 133
+======================================================================
+
+
+Period 44 (Period_44) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Summary of state and inference: Lead time is confirmed = 0 (carry-over insight from Period 5 and all concluded periods show same-period arrivals). Current visible inventory: on-hand = 23, in-transit = 0. OR recommends 133 units. Recent realized demand (Periods 39\u201343) = [172, 186, 137, 125, 132], recent 5-period mean \u2248 150, so we are clearly in a high-demand regime. Because lead time = 0, an order placed now will arrive in the current period and can satisfy this period's demand.\n\nWhy OR's recommendation is sensible: OR's capped base-stock policy (using promised L=0 and the 95% critical fractile implied by profit/holding) yields 133 units. That matches our need to replenish for the high-demand regime: ordering 133 + on-hand 23 \u2192 156 units available this period, which is slightly above the recent mean demand (~150). Given profit = $19 and holding = $1, the critical fractile is high (q = 19/20 = 0.95) so erring on the side of having a little extra stock to avoid lost sales is appropriate.\n\nRisk tradeoffs and final decision: Holding cost is very small relative to profit, so the penalty for a bit of overstock is low compared to a stockout. There are no in-transit units and no signs of lost shipments, and lead time remains 0, so we can rely on same-period replenishment. Therefore I will follow the OR recommendation and order 133 units to restore availability to roughly one period's demand under the current high-demand regime.\n\nImplementation details: Order = 133 units. This yields on-hand + arrivals \u2248156 available this period, giving a small buffer over the recent mean demand (~+4%), which is appropriate given the high profit margin and low holding cost.",
+  "short_rationale_for_human": "Following OR's 133 units \u2014 lead time = 0 so order arrives same period; on-hand 23 + 133 = 156 covers recent high-demand mean (~150). With profit >> holding cost, a small buffer is preferred to avoid lost sales.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 133
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 133})
+
+Period 44 (Period_44) Demand: {
+  "action": {
+    "chips(Regular)": 154
+  }
+}
+
+=== Period 44 Summary ===
+chips(Regular): ordered=133, arrived=133 units (ordered on Period 44, lead_time was 0 periods), starting on-hand inventory=156, demand=154, sold=154, ending on-hand inventory=2
+Daily Profit: $2926.00, Daily Holding Cost: $2.00
+Daily Reward (R_t): $2924.00
+
+======================================================================
+Period 45 (Period_45) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 90.90
+  Empirical std: 40.75
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 90.90
+  sigma_hat (\u03c3\u0302): 40.75
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 157.93
+  Current inventory: 2
+  Cap value: 157.93
+  OR recommends (capped): 156
+  OR recommends (uncapped): 156
+======================================================================
+
+
+Period 45 (Period_45) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Concluded history shows lead time = 0 (many periods where orders placed in P arrive in same period). Therefore any order placed now will arrive during this current period's arrival resolution and can be used to satisfy this period's demand. There are no in-transit units to consider.\n\nStep 2 \u2014 Inventory position: On-hand = 2, in-transit = 0. With L=0 the decision must cover (L+1)=1 period of demand (i.e., current period demand occurs after the decision).\n\nStep 3 \u2014 Demand outlook: Recent periods indicate a sustained high-demand regime starting ~Period 36. Periods 36\u201344 demands = [108,149,130,172,186,137,125,132,154], average \u2248 143.7 units/period. This aligns with the carry-over insight recorded at Period 39 (new high-demand regime). Demand remains elevated through Period 44, so I expect single-period demand near ~140\u2013150.\n\nStep 4 \u2014 OR recommendation comparison: OR recommends 156 units using its capped base-stock policy (which uses promised lead time and historical samples). That recommendation targets a safety factor consistent with profit/holding (q\u22480.95 \u2192 z\u22481.645), so OR's number already includes a safety buffer appropriate for high stockout cost.\n\nStep 5 \u2014 Final decision logic: With lead time = 0 and no pipeline, we need order \u2248 expected single-period demand minus on-hand + safety. Expected demand \u2248 144; on-hand 2 \u2192 raw need \u2248142. OR's recommendation of 156 provides a modest additional safety buffer (~+12 units) which is reasonable given the high profit per unit ($19) relative to holding cost ($1). Holding cost is low (cheap to hold), so erring slightly high reduces stockouts and lost profit. Therefore I follow the OR recommendation and order 156 units.\n\nStep 6 \u2014 Risk notes: If demand suddenly drops, holding cost will reduce net reward but current evidence of 9 consecutive high-demand periods argues for maintaining the larger base-stock. No new multi-period (>3) pattern change to record as a carry-over insight.\n",
+  "short_rationale_for_human": "Ordering 156 units (following OR) because lead time is confirmed 0, on-hand is only 2, and recent sustained high-demand regime averages ~144 units/period \u2014 OR's 156 gives a modest safety buffer appropriate given high profit vs low holding cost.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 156
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 156})
+
+Period 45 (Period_45) Demand: {
+  "action": {
+    "chips(Regular)": 80
+  }
+}
+
+=== Period 45 Summary ===
+chips(Regular): ordered=156, arrived=156 units (ordered on Period 45, lead_time was 0 periods), starting on-hand inventory=158, demand=80, sold=80, ending on-hand inventory=78
+Daily Profit: $1520.00, Daily Holding Cost: $78.00
+Daily Reward (R_t): $1442.00
+
+======================================================================
+Period 46 (Period_46) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 90.68
+  Empirical std: 40.36
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 90.68
+  sigma_hat (\u03c3\u0302): 40.36
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 157.07
+  Current inventory: 78
+  Cap value: 157.07
+  OR recommends (capped): 80
+  OR recommends (uncapped): 80
+======================================================================
+
+
+Period 46 (Period_46) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history shows lead time = 0 (orders in P1\u2013P45 always arrived same period), so an order placed now will arrive during Period 46 and be available for Period 46 demand. Inventory & demand analysis: On-hand = 78, in-transit = 0. Recent demand has been in a sustained high regime since Period 36; recent five-period demands (P41\u2013P45) = 137,125,132,154,80 \u2192 mean \u2248125.6. OR baseline: OR recommends 80 units using the promised lead time and long-run history; with profit $19 and holding $1 the critical fractile q = 19/20 = 0.95 (z*\u22481.645), implying substantial safety stock. Target reasoning: A sensible base-stock for a 1-period review with L=0 is roughly \u03bc + z*\u03c3. Using the recent high-regime mean (~126) and an estimated \u03c3 on the order of ~25 (consistent with historical high-regime volatility), z*\u03c3 \u2248 41, yielding a target on-hand \u2248167. To hit that target from current on-hand 78 we need about 89 units. Adjustment decision: OR's 80 is close but slightly conservative given the confirmed high-demand regime and very high profit (low penalty for potential holding). I order 90 units (rounding 89 up) to bring available inventory to ~168 for Period 46 demand, prioritizing sales and profit while accepting modest holding cost. Carry-over: no new sustained pattern to record (existing carry-over insights already capture lead-time=0 and the high-demand regime).",
+  "short_rationale_for_human": "Increase OR's 80 to 90 units \u2014 lead time is confirmed 0 and recent demand is in a sustained high regime (recent mean \u2248126); 90 brings total available \u2248168, covering expected demand plus safety stock.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 90
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 80})
+
+Period 46 (Period_46) Demand: {
+  "action": {
+    "chips(Regular)": 97
+  }
+}
+
+=== Period 46 Summary ===
+chips(Regular): ordered=90, arrived=90 units (ordered on Period 46, lead_time was 0 periods), starting on-hand inventory=168, demand=97, sold=97, ending on-hand inventory=71
+Daily Profit: $1843.00, Daily Holding Cost: $71.00
+Daily Reward (R_t): $1772.00
+
+======================================================================
+Period 47 (Period_47) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 90.80
+  Empirical std: 39.97
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 90.80
+  sigma_hat (\u03c3\u0302): 39.97
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 156.55
+  Current inventory: 71
+  Cap value: 156.55
+  OR recommends (capped): 86
+  OR recommends (uncapped): 86
+======================================================================
+
+
+Period 47 (Period_47) Hybrid Decision:
+======================================================================
+{
+  "rationale": "1) Lead-time inference: Concluded history confirms actual lead time = 0 (multiple concluded messages show orders arriving same period). Therefore orders placed now will arrive within the same demand period (use L=0, coverage horizon = L+1 = 1 period).\n\n2) Inventory & demand analysis: On-hand = 71, in-transit = 0. Recent realized demand (Periods 41\u201346) = [137,125,132,154,80,97], sample mean \u2248 120.8 and sample std \u2248 27.3. This recent window reflects the current high-demand regime that started around Period 36 and persists.\n\n3) OR recommendation check: OR suggests 86 units based on its capped base-stock. OR uses the promised lead time (0) but smooths/caps orders; it may be slightly conservative relative to my calculation of required units because of the high critical fractile (profit/(profit+holding)=19/20=0.95 \u2192 z*\u22481.645).\n\n4) Targeting policy and final order math: With L=0 we must ensure on-hand + order \u2248 single-period target = \u03bc + z*\xb7\u03c3 \u2248 120.8 + 1.645\xd727.3 \u2248 165.8 units on-hand to cover one-period demand with the chosen service level. With current on-hand 71, required order \u2248 165.8 \u2212 71 \u2248 94.8 \u2248 95. To be slightly conservative given demand variability and low holding cost ($1/unit/period) I round to 96 units.\n\n5) Strategy summary: I increase the OR recommendation (86) to 96 to better match the recently-observed high-demand regime and its measured volatility while leveraging the confirmed zero lead time (same-period arrivals). This reduces risk of stockouts in the current high-demand environment; holding cost is small so the extra safety stock is acceptable.\n\n6) Risk notes: If future periods show demand weakening for 3+ sustained periods, I will scale back orders; no new carry-over insight is recorded now because the high-demand regime and lead-time=0 are already captured.",
+  "short_rationale_for_human": "Raised OR's 86 \u2192 96 because lead time is confirmed 0 and recent periods show a high-demand regime (mean \u2248121, sd \u224827), so target on-hand \u2248166; with 71 on-hand we need ~95\u201396 more to avoid stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 96
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 86})
+
+Period 47 (Period_47) Demand: {
+  "action": {
+    "chips(Regular)": 140
+  }
+}
+
+=== Period 47 Summary ===
+chips(Regular): ordered=96, arrived=96 units (ordered on Period 47, lead_time was 0 periods), starting on-hand inventory=167, demand=140, sold=140, ending on-hand inventory=27
+Daily Profit: $2660.00, Daily Holding Cost: $27.00
+Daily Reward (R_t): $2633.00
+
+======================================================================
+Period 48 (Period_48) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 91.75
+  Empirical std: 40.16
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 91.75
+  sigma_hat (\u03c3\u0302): 40.16
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 157.81
+  Current inventory: 27
+  Cap value: 157.81
+  OR recommends (capped): 131
+  OR recommends (uncapped): 131
+======================================================================
+
+
+Period 48 (Period_48) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time & arrivals: Concluded history and carry-over insights confirm actual lead time = 0 (orders arrive same period). Therefore an order placed now will arrive during Period 48 and be available to satisfy Period 48 demand. Inventory state: on-hand = 27, in-transit = 0. Demand outlook: Recent periods (Periods 43\u201347 demands = 132,154,80,97,140) show we are in the higher-demand regime identified earlier (Periods 36+). The most recent 5-period average demand \u2248 120.6 units; a slightly longer recent window (Periods 40\u201347) average is similar (~121). Cost tradeoff: profit = $19/unit and holding cost = $1/unit/period imply a very high critical fractile q = 19/(19+1) = 0.95 (z*\u22481.645), which justifies holding safety stock to avoid stockouts. OR recommended 131 units; it uses similar logic but does not account for the fact that we currently hold 27 units and there are only three periods left in the horizon (Period 48 of 50). Decision rule applied: because lead time = 0, an order added now is effective immediately; I want enough inventory to cover roughly one period of demand (L+1 =1) plus a modest buffer for variation, but given the short remaining horizon and existing on-hand, I avoid over-ordering excessive multi-period stock which would incur holding cost in the remaining periods without much opportunity to convert to sales. Calculation: target single-period demand \u2248 121 units. Subtract on-hand 27 -> order \u2248 94 to meet expected demand; add a modest safety buffer because of demand variability and high profit; I choose to increase to 121 units total arrival (order 121 \u2212 on-hand 27 = 94) would restore total available inventory to ~121. OR recommended 131 (slightly more aggressive); I reduce to match the near-term demand estimate but still keep a high service level. Final action: order 94 units (so that on-hand + arrival \u2248 121 for Period 48). This balances high profit per sale and low holding cost while avoiding surplus inventory in the small remaining horizon. Monitoring: after Period 48 conclude, confirm realized demand and revise future orders for Periods 49\u201350. ",
+  "short_rationale_for_human": "Reduced OR's 131\u2192order 94 units because lead time=0 and on-hand=27; target single-period demand \u2248121, so ordering 94 brings available stock to ~121 (high service with lower excess holding given only 3 periods left).",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 94
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 131})
+
+Period 48 (Period_48) Demand: {
+  "action": {
+    "chips(Regular)": 152
+  }
+}
+
+=== Period 48 Summary ===
+chips(Regular): ordered=94, arrived=94 units (ordered on Period 48, lead_time was 0 periods), starting on-hand inventory=121, demand=152, sold=121, ending on-hand inventory=0
+Daily Profit: $2299.00, Daily Holding Cost: $0.00
+Daily Reward (R_t): $2299.00
+
+======================================================================
+Period 49 (Period_49) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 92.89
+  Empirical std: 40.62
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 92.89
+  sigma_hat (\u03c3\u0302): 40.62
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 159.71
+  Current inventory: 0
+  Cap value: 159.71
+  OR recommends (capped): 160
+  OR recommends (uncapped): 160
+======================================================================
+
+
+Period 49 (Period_49) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Lead-time inference: Concluded history (Periods 1\u201348) repeatedly shows orders arriving in the same period they were placed (many 'arrived ... lead_time was 0 periods'); carry-over already recorded 'Lead time confirmed as 0 periods'. Therefore an order placed now will arrive during this period before demand is realized. Inventory & demand analysis: On-hand = 0, in-transit = 0 so no coverage for this period's demand. Recent demand has been in a sustained high regime since Period 36 (carry-over insight already records this). The average demand over Periods 37\u201348 \u2248 138 units, and the recent individual demands are often >130 (examples: P37 149, P38 130, P39 172, P40 186, P43 132, P44 154, P47 140, P48 152). Cost considerations: profit per unit = $19, holding = $1/unit/period \u2014 the profit far outweighs holding cost, so it is better to err on the side of satisfying demand rather than risking lost sales. OR recommendation: 160 units. Given zero on-hand, confirmed 0 lead time (so order will be available this period), the sustained high-demand regime, and low holding cost relative to profit, I accept the OR baseline order of 160 units to cover expected demand while allowing a modest safety buffer. No new carry-over insight to record (existing high-demand regime and lead-time=0 already captured). Final action: order 160 units of chips(Regular).",
+  "short_rationale_for_human": "Confirmed lead time = 0 and recent sustained high-demand regime (avg \u2248138 over P37\u2013P48); with high profit vs low holding cost, follow OR's 160-unit recommendation to avoid stockouts.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 160
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 160})
+
+Period 49 (Period_49) Demand: {
+  "action": {
+    "chips(Regular)": 140
+  }
+}
+
+=== Period 49 Summary ===
+chips(Regular): ordered=160, arrived=160 units (ordered on Period 49, lead_time was 0 periods), starting on-hand inventory=160, demand=140, sold=140, ending on-hand inventory=20
+Daily Profit: $2660.00, Daily Holding Cost: $20.00
+Daily Reward (R_t): $2640.00
+
+======================================================================
+Period 50 (Period_50) OR ALGORITHM RECOMMENDATIONS (CAPPED POLICY):
+======================================================================
+
+chips(Regular):
+  Empirical mean: 93.76
+  Empirical std: 40.75
+  Lead time (L): 0
+  mu_hat (\u03bc\u0302): 93.76
+  sigma_hat (\u03c3\u0302): 40.75
+  Critical fractile (q): 0.9500
+  z*: 1.6449
+  Base stock: 160.78
+  Current inventory: 20
+  Cap value: 160.78
+  OR recommends (capped): 141
+  OR recommends (uncapped): 141
+======================================================================
+
+
+Period 50 (Period_50) Hybrid Decision:
+======================================================================
+{
+  "rationale": "Step 1 \u2014 Lead time & arrivals: Concluded history shows lead time = 0 (confirmed earlier and in every conclude: orders arrive same period). Therefore an order placed now will arrive before demand this period and immediately increase on-hand inventory.\n\nStep 2 \u2014 Inventory position: Current on-hand = 20, in-transit = 0. With L=0 there is no pipeline to wait for; an order will be available for today's sales.\n\nStep 3 \u2014 Demand outlook: Recent periods (Periods 36\u201349) show a sustained high-demand regime (multiple periods of demands ~108\u2013186, with frequent stockouts when inventory was low). The OR baseline recommended 141 units using historical stats and promised lead time; that recommendation aligns with the recent high-demand regime and the critical fractile (profit $19 vs holding $1 \u2192 q\u22480.95 \u2192 large safety stock). Given the strong evidence of elevated demand since Period 36 and multiple periods with demand ~140\u2013180, the risk of understocking (lost high-profit sales) is much larger than the small holding cost.\n\nStep 4 \u2014 Adjustment decision: OR recommends ordering 141 units. With on-hand=20, ordering 141 yields available inventory \u2248161 for this period, which is sufficient to meet typical recent peak demands (140\u2013186) without severe risk of stockout and keeps holding low relative to lost profit. Because holding cost is small ($1) versus profit ($19), erring toward following OR's high target is optimal.\n\nFinal strategy: Follow OR recommendation (order 141). This leverages OR's capped base-stock while respecting observed lead time = 0 and the confirmed high-demand regime. No new carry-over insight to record (existing regime/lead-time insights already captured).",
+  "short_rationale_for_human": "Followed OR's recommendation of 141 units \u2014 lead time is confirmed 0 so this order arrives before demand; recent periods show a sustained high-demand regime (~108\u2013186), and high profit vs low holding cost favors stocking to avoid lost sales.",
+  "carry_over_insight": "",
+  "action": {
+    "chips(Regular)": 141
+  }
+}
+Carry-over insight: (empty)
+======================================================================
+  (OR recommended: {'chips(Regular)': 141})
+
+Period 50 (Period_50) Demand: {
+  "action": {
+    "chips(Regular)": 155
+  }
+}
+
+=== Period 50 Summary ===
+chips(Regular): ordered=141, arrived=141 units (ordered on Period 50, lead_time was 0 periods), starting on-hand inventory=161, demand=155, sold=155, ending on-hand inventory=6
+Daily Profit: $2945.00, Daily Holding Cost: $6.00
+Daily Reward (R_t): $2939.00
+
+======================================================================
+=== Final Results (Hybrid: LLM + OR) ===
+======================================================================
+
+Per-Item Statistics:
+
+chips(Regular) (chips(Regular)):
+  Ordered: 4524, Sold: 4518, Ending: 6
+  Profit/unit: $19.0, Holding: $1.0/unit/period
+  Total Profit: $85842.0
+
+======================================================================
+Period Breakdown:
+======================================================================
+Period 1 (Period_1): Profit=$1064.00, Holding=$66.00, Reward=$998.00
+Period 2 (Period_2): Profit=$1862.00, Holding=$25.00, Reward=$1837.00
+Period 3 (Period_3): Profit=$2337.00, Holding=$0.00, Reward=$2337.00
+Period 4 (Period_4): Profit=$1558.00, Holding=$55.00, Reward=$1503.00
+Period 5 (Period_5): Profit=$2109.00, Holding=$11.00, Reward=$2098.00
+Period 6 (Period_6): Profit=$2318.00, Holding=$0.00, Reward=$2318.00
+Period 7 (Period_7): Profit=$2565.00, Holding=$35.00, Reward=$2530.00
+Period 8 (Period_8): Profit=$2432.00, Holding=$28.00, Reward=$2404.00
+Period 9 (Period_9): Profit=$2014.00, Holding=$51.00, Reward=$1963.00
+Period 10 (Period_10): Profit=$2166.00, Holding=$53.00, Reward=$2113.00
+Period 11 (Period_11): Profit=$2052.00, Holding=$61.00, Reward=$1991.00
+Period 12 (Period_12): Profit=$2299.00, Holding=$43.00, Reward=$2256.00
+Period 13 (Period_13): Profit=$1292.00, Holding=$84.00, Reward=$1208.00
+Period 14 (Period_14): Profit=$2014.00, Holding=$20.00, Reward=$1994.00
+Period 15 (Period_15): Profit=$1539.00, Holding=$49.00, Reward=$1490.00
+Period 16 (Period_16): Profit=$722.00, Holding=$94.00, Reward=$628.00
+Period 17 (Period_17): Profit=$1178.00, Holding=$52.00, Reward=$1126.00
+Period 18 (Period_18): Profit=$684.00, Holding=$61.00, Reward=$623.00
+Period 19 (Period_19): Profit=$475.00, Holding=$84.00, Reward=$391.00
+Period 20 (Period_20): Profit=$1102.00, Holding=$26.00, Reward=$1076.00
+Period 21 (Period_21): Profit=$1121.00, Holding=$44.00, Reward=$1077.00
+Period 22 (Period_22): Profit=$1083.00, Holding=$7.00, Reward=$1076.00
+Period 23 (Period_23): Profit=$1368.00, Holding=$1.00, Reward=$1367.00
+Period 24 (Period_24): Profit=$1501.00, Holding=$0.00, Reward=$1501.00
+Period 25 (Period_25): Profit=$513.00, Holding=$68.00, Reward=$445.00
+Period 26 (Period_26): Profit=$665.00, Holding=$33.00, Reward=$632.00
+Period 27 (Period_27): Profit=$1140.00, Holding=$0.00, Reward=$1140.00
+Period 28 (Period_28): Profit=$779.00, Holding=$62.00, Reward=$717.00
+Period 29 (Period_29): Profit=$1273.00, Holding=$25.00, Reward=$1248.00
+Period 30 (Period_30): Profit=$1159.00, Holding=$14.00, Reward=$1145.00
+Period 31 (Period_31): Profit=$1083.00, Holding=$20.00, Reward=$1063.00
+Period 32 (Period_32): Profit=$1330.00, Holding=$30.00, Reward=$1300.00
+Period 33 (Period_33): Profit=$1064.00, Holding=$52.00, Reward=$1012.00
+Period 34 (Period_34): Profit=$855.00, Holding=$27.00, Reward=$828.00
+Period 35 (Period_35): Profit=$988.00, Holding=$21.00, Reward=$967.00
+Period 36 (Period_36): Profit=$1045.00, Holding=$0.00, Reward=$1045.00
+Period 37 (Period_37): Profit=$2090.00, Holding=$0.00, Reward=$2090.00
+Period 38 (Period_38): Profit=$2470.00, Holding=$0.00, Reward=$2470.00
+Period 39 (Period_39): Profit=$2679.00, Holding=$0.00, Reward=$2679.00
+Period 40 (Period_40): Profit=$3515.00, Holding=$0.00, Reward=$3515.00
+Period 41 (Period_41): Profit=$2603.00, Holding=$33.00, Reward=$2570.00
+Period 42 (Period_42): Profit=$2375.00, Holding=$69.00, Reward=$2306.00
+Period 43 (Period_43): Profit=$2508.00, Holding=$23.00, Reward=$2485.00
+Period 44 (Period_44): Profit=$2926.00, Holding=$2.00, Reward=$2924.00
+Period 45 (Period_45): Profit=$1520.00, Holding=$78.00, Reward=$1442.00
+Period 46 (Period_46): Profit=$1843.00, Holding=$71.00, Reward=$1772.00
+Period 47 (Period_47): Profit=$2660.00, Holding=$27.00, Reward=$2633.00
+Period 48 (Period_48): Profit=$2299.00, Holding=$0.00, Reward=$2299.00
+Period 49 (Period_49): Profit=$2660.00, Holding=$20.00, Reward=$2640.00
+Period 50 (Period_50): Profit=$2945.00, Holding=$6.00, Reward=$2939.00
+
+======================================================================
+=== TOTAL SUMMARY ===
+======================================================================
+Total Profit from Sales: $85842.00
+Total Holding Cost: $1631.00
+
+>>> Total Reward (Hybrid Strategy): $84211.00 <<<
+VM Final Reward: 84211.00
+======================================================================
+
+
+========================================
+REFERENCE: Perfect Score: $90231.00
+========================================
