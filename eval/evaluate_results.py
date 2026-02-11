@@ -1,0 +1,434 @@
+"""
+Evaluate Results on InventoryBench
+
+This script:
+1. Takes results/ folder with order decisions (results.csv per instance)
+2. Takes benchmark/ folder with ground truth (train.csv, test.csv)
+3. Simulates game mechanics to compute rewards
+4. Computes normalized scores relative to perfect foresight upper bound
+5. Reports per-instance and aggregate statistics
+
+Usage:
+    python eval/evaluate_results.py --benchmark-dir benchmark --results-dir results/yesterday_demand
+    
+Output:
+    - Per-instance scores printed to stdout
+    - Summary statistics (mean, median, std) for normalized reward
+    - Detailed results saved to results/yesterday_demand/evaluation_report.json
+"""
+
+import os
+import sys
+import argparse
+import pandas as pd
+import numpy as np
+import json
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON encoder for numpy types."""
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.floating)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
+def compute_perfect_foresight_reward(
+    test_df: pd.DataFrame,
+    item_id: str
+) -> float:
+    """
+    Compute perfect foresight upper bound reward.
+    
+    Perfect policy: Order exact demand each period, always in stock, zero holding.
+    Reward = Profit × Total_Demand
+    
+    Args:
+        test_df: Test data with demand trajectory
+        item_id: SKU identifier
+    
+    Returns:
+        Perfect foresight reward (upper bound)
+    """
+    total_demand = test_df[f'demand_{item_id}'].sum()
+    
+    # Assuming profit is constant (use first row)
+    profit_per_unit = test_df.iloc[0][f'profit_{item_id}']
+    
+    # Perfect policy: Sell all demand, hold nothing
+    perfect_reward = profit_per_unit * total_demand
+    
+    return perfect_reward
+
+
+def simulate_and_score(
+    results_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    item_id: str
+) -> Dict:
+    """
+    Simulate game mechanics and compute reward.
+    
+    Args:
+        results_df: Order decisions (period, order_quantity)
+        test_df: Ground truth trajectory
+        item_id: SKU identifier
+    
+    Returns:
+        Dict with keys:
+            - total_reward: Total reward achieved
+            - total_profit: Total profit from sales
+            - total_holding_cost: Total holding cost
+            - units_sold: Total units sold
+            - units_ordered: Total units ordered
+            - ending_inventory: Final inventory level
+            - service_level: Fraction of demand satisfied
+            - perfect_foresight: Upper bound reward
+            - normalized_reward: Reward / perfect_foresight
+    """
+    num_periods = len(test_df)
+    
+    # Validate results have correct number of periods
+    if len(results_df) != num_periods:
+        raise ValueError(
+            f"Results have {len(results_df)} periods but test has {num_periods}"
+        )
+    
+    # State tracking
+    on_hand_inventory = 0.0
+    in_transit_orders = {}  # {arrival_period: quantity}
+    
+    total_profit = 0.0
+    total_holding_cost = 0.0
+    total_sold = 0.0
+    total_demand = 0.0
+    total_ordered = 0.0
+    
+    for period_idx in range(num_periods):
+        period = period_idx + 1
+        test_row = test_df.iloc[period_idx]
+        results_row = results_df.iloc[period_idx]
+        
+        # Validate period alignment
+        if results_row['period'] != period:
+            raise ValueError(
+                f"Period mismatch at index {period_idx}: "
+                f"expected {period}, got {results_row['period']}"
+            )
+        
+        # Extract data
+        order_quantity = float(results_row['order_quantity'])
+        actual_demand = float(test_row[f'demand_{item_id}'])
+        profit_per_unit = float(test_row[f'profit_{item_id}'])
+        holding_cost_per_unit = float(test_row[f'holding_cost_{item_id}'])
+        actual_lead_time = test_row[f'lead_time_{item_id}']
+        
+        # Handle infinite lead time
+        if isinstance(actual_lead_time, str) and actual_lead_time.lower() == 'inf':
+            actual_lead_time = float('inf')
+        elif np.isinf(float(actual_lead_time)):
+            actual_lead_time = float('inf')
+        else:
+            actual_lead_time = int(actual_lead_time)
+        
+        # === PERIOD EXECUTION SEQUENCE ===
+        
+        # 1. DECISION PHASE: Order placed
+        total_ordered += order_quantity
+        
+        # Schedule arrival (if not lost)
+        if not np.isinf(actual_lead_time):
+            arrival_period = period + actual_lead_time
+            in_transit_orders[arrival_period] = in_transit_orders.get(arrival_period, 0) + order_quantity
+        
+        # 2. ARRIVAL RESOLUTION
+        arrivals = in_transit_orders.pop(period, 0)
+        on_hand_inventory += arrivals
+        
+        # 3. DEMAND RESOLUTION
+        units_sold = min(actual_demand, on_hand_inventory)
+        on_hand_inventory -= units_sold
+        
+        # 4. REWARD COMPUTATION
+        period_profit = profit_per_unit * units_sold
+        period_holding = holding_cost_per_unit * on_hand_inventory
+        
+        total_profit += period_profit
+        total_holding_cost += period_holding
+        total_sold += units_sold
+        total_demand += actual_demand
+    
+    # Compute final metrics
+    total_reward = total_profit - total_holding_cost
+    service_level = total_sold / total_demand if total_demand > 0 else 1.0
+    
+    # Compute perfect foresight upper bound
+    perfect_foresight = compute_perfect_foresight_reward(test_df, item_id)
+    
+    # Normalized reward: max(0, reward / perfect_foresight)
+    normalized_reward = max(0.0, total_reward / perfect_foresight) if perfect_foresight > 0 else 0.0
+    
+    return {
+        'total_reward': total_reward,
+        'total_profit': total_profit,
+        'total_holding_cost': total_holding_cost,
+        'units_sold': total_sold,
+        'units_ordered': total_ordered,
+        'ending_inventory': on_hand_inventory,
+        'service_level': service_level,
+        'perfect_foresight': perfect_foresight,
+        'normalized_reward': normalized_reward
+    }
+
+
+def evaluate_all_instances(
+    benchmark_dir: Path,
+    results_dir: Path
+) -> Dict:
+    """
+    Evaluate all instances and compute aggregate statistics.
+    
+    Returns:
+        Dict with keys:
+            - instance_scores: List of per-instance results
+            - summary: Aggregate statistics
+    """
+    instance_scores = []
+    
+    # Find all result files
+    result_files = []
+    for root, dirs, files in os.walk(results_dir):
+        if 'results.csv' in files:
+            result_files.append(Path(root))
+    
+    print(f"Found {len(result_files)} result files in {results_dir}")
+    
+    if len(result_files) == 0:
+        print("Error: No results.csv files found!")
+        sys.exit(1)
+    
+    # Process each instance
+    for idx, result_instance_dir in enumerate(result_files, 1):
+        # Compute relative path
+        rel_path = result_instance_dir.relative_to(results_dir)
+        
+        # Corresponding benchmark directory
+        benchmark_instance_dir = benchmark_dir / rel_path
+        
+        if not benchmark_instance_dir.exists():
+            print(f"\n[{idx}/{len(result_files)}] ⚠️  Skipping: No matching benchmark for {rel_path}")
+            continue
+        
+        print(f"\n[{idx}/{len(result_files)}] Evaluating: {rel_path}")
+        
+        try:
+            # Load files
+            results_path = result_instance_dir / "results.csv"
+            train_path = benchmark_instance_dir / "train.csv"
+            test_path = benchmark_instance_dir / "test.csv"
+            
+            if not results_path.exists():
+                print(f"  ⚠️  Missing results.csv")
+                continue
+            if not test_path.exists():
+                print(f"  ⚠️  Missing test.csv in benchmark")
+                continue
+            
+            results_df = pd.read_csv(results_path)
+            test_df = pd.read_csv(test_path)
+            
+            # Extract item_id
+            demand_cols = [col for col in test_df.columns if col.startswith('demand_')]
+            if not demand_cols:
+                print(f"  ⚠️  No demand columns in test.csv")
+                continue
+            item_id = demand_cols[0][len('demand_'):]
+            
+            # Simulate and score
+            scores = simulate_and_score(results_df, test_df, item_id)
+            
+            # Add metadata
+            scores['instance_path'] = str(rel_path)
+            scores['item_id'] = item_id
+            scores['num_periods'] = int(len(test_df))  # Convert to native int
+            
+            instance_scores.append(scores)
+            
+            # Print instance summary
+            print(f"  ✓ Reward: {scores['total_reward']:.2f}")
+            print(f"    Perfect: {scores['perfect_foresight']:.2f}")
+            print(f"    Normalized: {scores['normalized_reward']:.4f}")
+            print(f"    Service Level: {scores['service_level']:.2%}")
+            
+        except Exception as e:
+            print(f"  ✗ Error: {e}")
+            continue
+    
+    # Compute summary statistics
+    if len(instance_scores) == 0:
+        print("\nError: No instances were successfully evaluated!")
+        sys.exit(1)
+    
+    normalized_rewards = [s['normalized_reward'] for s in instance_scores]
+    total_rewards = [s['total_reward'] for s in instance_scores]
+    service_levels = [s['service_level'] for s in instance_scores]
+    
+    summary = {
+        'num_instances': len(instance_scores),
+        'normalized_reward': {
+            'mean': float(np.mean(normalized_rewards)),
+            'median': float(np.median(normalized_rewards)),
+            'std': float(np.std(normalized_rewards)),
+            'min': float(np.min(normalized_rewards)),
+            'max': float(np.max(normalized_rewards))
+        },
+        'total_reward': {
+            'mean': float(np.mean(total_rewards)),
+            'median': float(np.median(total_rewards)),
+            'std': float(np.std(total_rewards)),
+            'sum': float(np.sum(total_rewards))
+        },
+        'service_level': {
+            'mean': float(np.mean(service_levels)),
+            'median': float(np.median(service_levels)),
+            'std': float(np.std(service_levels))
+        }
+    }
+    
+    return {
+        'instance_scores': instance_scores,
+        'summary': summary
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Evaluate results on InventoryBench'
+    )
+    parser.add_argument(
+        '--benchmark-dir',
+        type=str,
+        default='benchmark',
+        help='Path to benchmark parent directory (will auto-detect subfolders)'
+    )
+    parser.add_argument(
+        '--results-dir',
+        type=str,
+        required=True,
+        help='Path to results parent directory (mirrors benchmark structure)'
+    )
+    parser.add_argument(
+        '--output-json',
+        type=str,
+        default=None,
+        help='Path to save aggregated evaluation JSON (default: results_dir/evaluation_summary.json)'
+    )
+    
+    args = parser.parse_args()
+    
+    benchmark_parent = Path(args.benchmark_dir)
+    results_parent = Path(args.results_dir)
+    
+    if not benchmark_parent.exists():
+        print(f"Error: Benchmark directory not found: {benchmark_parent}")
+        sys.exit(1)
+    
+    if not results_parent.exists():
+        print(f"Error: Results directory not found: {results_parent}")
+        sys.exit(1)
+    
+    # Auto-detect batches
+    batches = []
+    for trajectory_type in ['real_trajectory', 'synthetic_trajectory']:
+        for lead_time in ['lead_time_0', 'lead_time_4', 'lead_time_stochastic']:
+            benchmark_dir = benchmark_parent / trajectory_type / lead_time
+            results_dir = results_parent / trajectory_type / lead_time
+            if benchmark_dir.exists() and results_dir.exists():
+                batches.append({
+                    'name': f"{trajectory_type}/{lead_time}",
+                    'benchmark_dir': benchmark_dir,
+                    'results_dir': results_dir
+                })
+    
+    if not batches:
+        print(f"Error: No matching batches found")
+        sys.exit(1)
+    
+    print(f"{'='*70}")
+    print(f"Evaluating Results on InventoryBench")
+    print(f"{'='*70}")
+    print(f"Found {len(batches)} batches to evaluate")
+    print(f"{'='*70}")
+    
+    # Evaluate each batch
+    batch_results = {}
+    all_instance_scores = []
+    
+    for batch in batches:
+        print(f"\n{'='*70}")
+        print(f"Evaluating: {batch['name']}")
+        print(f"{'='*70}")
+        
+        evaluation = evaluate_all_instances(batch['benchmark_dir'], batch['results_dir'])
+        
+        batch_results[batch['name']] = {
+            'num_instances': evaluation['summary']['num_instances'],
+            'score': evaluation['summary']['normalized_reward']['mean'],
+            'normalized_reward_stats': evaluation['summary']['normalized_reward'],
+            'service_level_mean': evaluation['summary']['service_level']['mean']
+        }
+        
+        all_instance_scores.extend(evaluation['instance_scores'])
+        
+        # Print batch summary
+        print(f"  Instances: {evaluation['summary']['num_instances']}")
+        print(f"  Score: {evaluation['summary']['normalized_reward']['mean']:.4f}")
+        print(f"  Service Level: {evaluation['summary']['service_level']['mean']:.2%}")
+    
+    # Compute overall statistics
+    all_normalized_rewards = [s['normalized_reward'] for s in all_instance_scores]
+    overall_score = float(np.mean(all_normalized_rewards))
+    
+    # Create final summary
+    final_summary = {
+        'overall_score': overall_score,
+        'total_instances': len(all_instance_scores),
+        'batches': batch_results,
+        'overall_stats': {
+            'mean': float(np.mean(all_normalized_rewards)),
+            'median': float(np.median(all_normalized_rewards)),
+            'std': float(np.std(all_normalized_rewards)),
+            'min': float(np.min(all_normalized_rewards)),
+            'max': float(np.max(all_normalized_rewards))
+        }
+    }
+    
+    # Print final summary
+    print(f"\n{'='*70}")
+    print(f"=== OVERALL EVALUATION SUMMARY ===")
+    print(f"{'='*70}")
+    print(f"\nTotal Instances: {final_summary['total_instances']}")
+    print(f"\nBatch Scores:")
+    for batch_name, batch_data in batch_results.items():
+        print(f"  {batch_name:40s}: {batch_data['score']:.4f} ({batch_data['num_instances']} instances)")
+    
+    print(f"\n{'='*70}")
+    print(f">>> OVERALL SCORE: {overall_score:.4f} <<<")
+    print(f"{'='*70}")
+    
+    # Save to JSON
+    output_path = Path(args.output_json) if args.output_json else results_parent / "evaluation_summary.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(output_path, 'w') as f:
+        json.dump(final_summary, f, indent=2, cls=NumpyEncoder)
+    
+    print(f"\n✓ Evaluation summary saved to: {output_path}")
+
+
+if __name__ == "__main__":
+    main()
