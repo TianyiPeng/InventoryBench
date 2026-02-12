@@ -2,6 +2,8 @@
 
 A comprehensive benchmark for evaluating how Large Language Models (LLMs) can collaborate with Operations Research (OR) algorithms on multi-period inventory control problems. InventoryBench provides **1,320 benchmark instances**, implementations of **4 agent strategies**, and a **VendingMachine** inventory game environment built on the [TextArena](https://github.com/LeonGuertler/TextArena) framework.
 
+**Website & Leaderboard:** [https://tianyipeng.github.io/InventoryBench/](https://tianyipeng.github.io/InventoryBench/)
+
 ---
 
 ## Overview

@@ -2,6 +2,8 @@
 
 This directory contains tools for evaluating inventory policies on InventoryBench.
 
+**Website & Leaderboard:** [https://tianyipeng.github.io/InventoryBench/](https://tianyipeng.github.io/InventoryBench/)
+
 ## Overview
 
 Every submission follows this structure:
