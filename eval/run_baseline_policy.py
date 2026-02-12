@@ -1,14 +1,31 @@
 """
-Run Baseline Policy on InventoryBench
+Run Policy on InventoryBench
 
 This script:
 1. Enumerates all instances in benchmark/ folder
-2. Runs YesterdayDemandPolicy on each instance
-3. Outputs results/ folder with same structure as benchmark/
+2. Runs your custom policy on each instance
+3. Outputs results/subfolder with same structure as benchmark/
 4. Each instance gets results.csv with columns: period, order_quantity
 
+Output structure:
+    output_dir/
+    ├── results/
+    │   ├── real_trajectory/
+    │   │   ├── lead_time_0/instance_id/results.csv
+    │   │   ├── lead_time_4/instance_id/results.csv
+    │   │   └── lead_time_stochastic/instance_id/results.csv
+    │   └── synthetic_trajectory/
+    │       ├── lead_time_0/instance_id/results.csv
+    │       ├── lead_time_4/instance_id/results.csv
+    │       └── lead_time_stochastic/instance_id/results.csv
+
+To use your own policy:
+- Create a class that inherits from InventoryPolicy in policy_template.py
+- Import it and update the policy instantiation at line ~225
+- Run the script with your custom policy
+
 Usage:
-    python eval/run_baseline_policy.py --benchmark-dir benchmark --output-dir results/yesterday_demand
+    python eval/run_baseline_policy.py --benchmark-dir benchmark --output-dir my_policy
 """
 
 import os
@@ -21,7 +38,7 @@ import numpy as np
 
 # Add parent directory to path to import policy_template
 sys.path.insert(0, str(Path(__file__).parent))
-from policy_template import YesterdayDemandPolicy
+from policy_template import ExamplePolicy
 
 
 def detect_promised_lead_time(instance_path: str) -> int:
@@ -135,8 +152,8 @@ def simulate_instance(
         
         # Ensure non-negative integer
         order_quantity = max(0, int(order_quantity))
-        
-        # Record decision
+
+        # Record decision with standard column name for evaluation
         results.append({
             'period': period,
             'order_quantity': order_quantity
@@ -216,7 +233,8 @@ def run_all_instances(benchmark_dir: Path, output_dir: Path):
             product_description = str(first_row[desc_col]) if desc_col in first_row else None
             
             # Initialize policy
-            policy = YesterdayDemandPolicy(
+            # TODO: Replace ExamplePolicy with your custom policy class
+            policy = ExamplePolicy(
                 item_id=item_id,
                 initial_samples=initial_samples,
                 promised_lead_time=promised_lead_time,
@@ -261,18 +279,20 @@ def main():
         '--output-dir',
         type=str,
         default='eval/example_policy_test',
-        help='Path to output parent directory (will mirror benchmark structure)'
+        help='Path to output parent directory (results will be in output_dir/results/)'
     )
-    
+
     args = parser.parse_args()
-    
+
     benchmark_parent = Path(args.benchmark_dir)
     output_parent = Path(args.output_dir)
-    
+    # All results go into a unified results/ subfolder
+    results_parent = output_parent / "results"
+
     if not benchmark_parent.exists():
         print(f"Error: Benchmark directory not found: {benchmark_parent}")
         sys.exit(1)
-    
+
     # Auto-detect benchmark subfolders
     benchmark_subdirs = []
     for trajectory_type in ['real_trajectory', 'synthetic_trajectory']:
@@ -280,33 +300,45 @@ def main():
             subdir = benchmark_parent / trajectory_type / lead_time
             if subdir.exists():
                 benchmark_subdirs.append((subdir, trajectory_type, lead_time))
-    
+
     if not benchmark_subdirs:
         print(f"Error: No benchmark subfolders found in {benchmark_parent}")
         sys.exit(1)
-    
+
     print(f"{'='*70}")
-    print(f"Running YesterdayDemandPolicy on InventoryBench")
+    print(f"Running ExamplePolicy on InventoryBench")
     print(f"{'='*70}")
     print(f"Found {len(benchmark_subdirs)} batches to process")
     print(f"{'='*70}")
-    
+
     # Process each batch
     for benchmark_dir, trajectory_type, lead_time in benchmark_subdirs:
-        output_dir = output_parent / trajectory_type / lead_time
+        # Output goes to results_parent/trajectory_type/lead_time
+        output_dir = results_parent / trajectory_type / lead_time
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         print(f"\n{'='*70}")
         print(f"Processing: {trajectory_type}/{lead_time}")
         print(f"Benchmark: {benchmark_dir}")
         print(f"Output: {output_dir}")
         print(f"{'='*70}")
-        
+
         run_all_instances(benchmark_dir, output_dir)
-    
+
     print(f"\n{'='*70}")
-    print(f"✓ All batches completed! Results saved to: {output_parent}")
+    print(f"✓ All batches completed! Results saved to: {results_parent}")
     print(f"{'='*70}")
+    print(f"\nFolder structure:")
+    print(f"  {output_parent}/")
+    print(f"  ├── results/")
+    print(f"  │   ├── real_trajectory/")
+    print(f"  │   │   ├── lead_time_0/")
+    print(f"  │   │   ├── lead_time_4/")
+    print(f"  │   │   └── lead_time_stochastic/")
+    print(f"  │   └── synthetic_trajectory/")
+    print(f"  │       ├── lead_time_0/")
+    print(f"  │       ├── lead_time_4/")
+    print(f"  │       └── lead_time_stochastic/")
 
 
 if __name__ == "__main__":

@@ -14,58 +14,48 @@ import pandas as pd
 def extract_decisions_from_log(log_file: Path, item_id: str):
     """
     Extract period-by-period decisions from a log file.
-    
-    Supports two formats:
-    1. OR/hybrid agents: Period X (...) Decision ... "action": {"item_id": value}
-    2. LLM agents: Period X (...) VM Action ... "action": {"item_id": value}
-    
+
+    FIXED v2: Extracts the ACTUAL executed order from "=== Period X Summary ==="
+    sections, which contain the final order placed for each period.
+
+    The period summary format:
+        === Period X Summary ===
+        item_id: ordered=VALUE, arrived=..., ...
+
+    This avoids the issue of multiple decision JSON blocks (OR recommendations,
+    LLM decisions, Hybrid decisions) per period by using the authoritative
+    period summary that shows what actually happened.
+
     Returns:
         List of (period, order_quantity) tuples
     """
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     decisions = []
-    
-    # Try OR/hybrid format first: "Decision" keyword
-    # Pattern: Period X (...) Decision ... { ... "action" ... { "item_id": value } ... }
-    pattern_or = r'Period (\d+) \([^)]+\)[^\{]*Decision[^\{]*\{[^}]*"action"[^}]*\{[^}]*"([^"]+)":\s*(\d+(?:\.\d+)?)'
-    matches = re.finditer(pattern_or, content, re.DOTALL)
-    
-    for match in matches:
+
+    # Extract from period summaries: "=== Period X Summary ===" sections
+    # Pattern: === Period X Summary === ... item_id: ordered=VALUE
+    summary_pattern = r'=== Period (\d+) Summary ===\n.*?{0}:.*?ordered=(\d+)'.format(re.escape(item_id))
+
+    for match in re.finditer(summary_pattern, content, re.DOTALL):
         period = int(match.group(1))
-        matched_item_id = match.group(2)
-        order_qty = float(match.group(3))
-        
-        if matched_item_id == item_id:
-            decisions.append((period, order_qty))
-    
-    # If no matches, try LLM format: "VM Action" keyword with nested JSON
+        ordered_qty = float(match.group(2))
+        decisions.append((period, ordered_qty))
+
+    # If no summaries found, fall back to Hybrid Decision blocks
+    # (for different log formats)
     if not decisions:
-        # Pattern: Period X (...) VM Action: ... { ... "action": { "item_id": value } ... }
-        pattern_llm = r'Period (\d+) \([^)]+\)\s+VM Action:[^{]*\{[^}]*"action"[^}]*\{[^}]*"([^"]+)":\s*(\d+(?:\.\d+)?)'
-        matches = re.finditer(pattern_llm, content, re.DOTALL)
-        
-        for match in matches:
+        hybrid_pattern = r'Period (\d+) \([^)]+\) Hybrid Decision:[^{]*\{[^}]*"action"[^}]*\{[^}]*"({0})":\s*(\d+(?:\.\d+)?)'.format(re.escape(item_id))
+        for match in re.finditer(hybrid_pattern, content, re.DOTALL):
             period = int(match.group(1))
-            matched_item_id = match.group(2)
-            order_qty = float(match.group(3))
-            
-            if matched_item_id == item_id:
-                decisions.append((period, order_qty))
-    
-    # Remove duplicates (keep first occurrence of each period)
-    seen_periods = set()
-    unique_decisions = []
-    for period, qty in decisions:
-        if period not in seen_periods:
-            unique_decisions.append((period, qty))
-            seen_periods.add(period)
-    
+            order_qty = float(match.group(2))
+            decisions.append((period, order_qty))
+
     # Sort by period
-    unique_decisions.sort(key=lambda x: x[0])
-    
-    return unique_decisions
+    decisions.sort(key=lambda x: x[0])
+
+    return decisions
 
 
 def process_agent_logs(results_dir: Path, agent_name: str, output_suffix: str = "_decisions"):

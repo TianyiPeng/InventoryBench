@@ -125,6 +125,54 @@ uv run python scripts/run_batch_benchmark.py \
 
 ---
 
+## Submitting Your Policy
+
+Want to evaluate your own inventory control policy on InventoryBench? Here's the process:
+
+**For detailed instructions, see [eval/README.md](eval/README.md).**
+
+### Quick Overview
+
+The standard submission structure is:
+```
+my_policy/
+├── results/          # Instance-level results (auto-generated)
+├── scores.json       # Evaluation summary (auto-generated)
+└── README.md         # Your method description
+```
+
+Steps to create this:
+1. **Implement Your Policy** — Create a class inheriting from `InventoryPolicy` in `eval/policy_template.py`
+2. **Run Your Policy** — `python eval/run_baseline_policy.py --output-dir my_policy` → generates `my_policy/results/`
+3. **Evaluate Results** — `python eval/evaluate_results.py --submission-dir my_policy` → generates `my_policy/scores.json`
+4. **Add Documentation** — Create `README.md` describing your approach
+5. **Submit** — Via GitHub PR or email to tianyipeng95@gmail.com
+
+### Evaluation Metrics
+
+Your policy is scored using **Normalized Reward**:
+
+```
+normalized_reward = max(0, agent_reward / perfect_foresight_reward)
+```
+
+Where:
+- `agent_reward`: Total profit minus holding costs from your decisions
+- `perfect_foresight_reward`: Optimal reward with perfect future demand knowledge
+
+The score is the mean normalized reward across all 1,320 instances.
+
+### Key Constraints
+
+- You receive only `promised_lead_time` at initialization (0, 2, or 4 periods)
+- You do NOT receive actual lead times during gameplay
+- You must infer supply reliability from observed arrivals
+- All other game context is fair game for your policy
+
+**See [eval/README.md](eval/README.md) for comprehensive instructions, including the policy interface, evaluation framework, file formats, and submission guidelines.**
+
+---
+
 ## Project Structure
 
 ```
@@ -181,6 +229,22 @@ To serve locally:
 cd leaderboard_website
 python serve.py
 ```
+
+---
+
+## Citation
+
+If you use InventoryBench in your research, please cite:
+
+```bibtex
+@article{baek2025ai,
+  title={AI Agents for Inventory Control: Human-LLM-OR Complementarity},
+  author={Baek, Jackie and Fu, Yaopeng and Ma, Will and Peng, Tianyi},
+  year={2025}
+}
+```
+
+**Authors:** Jackie Baek*, Yaopeng Fu†, Will Ma‡, Tianyi Peng§
 
 ---
 

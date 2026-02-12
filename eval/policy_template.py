@@ -98,19 +98,17 @@ class InventoryPolicy:
 
 
 # ============================================================================
-# Example Policy: Yesterday's Demand Baseline
+# Example Policy: Constant Order Quantity
 # ============================================================================
 
-class YesterdayDemandPolicy(InventoryPolicy):
+class ExamplePolicy(InventoryPolicy):
     """
-    Simple baseline: Order = max(0, yesterday's demand - current inventory)
-    
-    This is a naive policy that:
-    - Ignores lead times completely
-    - Targets inventory to cover one period of demand
-    - Uses most recent demand as forecast
+    Minimal example policy that always orders quantity 1.
+
+    This is provided as a template for participants to understand the interface.
+    Real policies should implement more sophisticated logic!
     """
-    
+
     def get_order(
         self,
         period: int,
@@ -123,16 +121,5 @@ class YesterdayDemandPolicy(InventoryPolicy):
         profit_per_unit: float,
         holding_cost_per_unit: float
     ) -> float:
-        """Order to cover yesterday's demand minus current inventory."""
-        
-        if period == 1:
-            # First period: Use mean of historical samples
-            forecast = sum(self.historical_demands) / len(self.historical_demands)
-        else:
-            # Use previous period's actual demand
-            forecast = previous_demand
-        
-        # Order = forecast - current_inventory (baseline ignores lead time)
-        order = max(0, forecast - on_hand_inventory)
-        
-        return int(order)
+        """Always order quantity 1 (example only - not a good policy!)"""
+        return 1
